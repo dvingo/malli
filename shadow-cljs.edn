@@ -6,6 +6,10 @@
                                   :depends-on #{:cljs}}
                           :app {:entries [malli.app]
                                 :depends-on #{:malli}}}}
+          :node-js {:target :node-script
+                    :output-to "build/node-app.js"
+                    :main malli.node-app/init
+                    :devtools {:repl-pprint true}}
           :app-sci {:target :browser
                     :closure-defines {malli.registry/type "default"}
                     :devtools {:preloads [sci.core]}
