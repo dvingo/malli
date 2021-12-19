@@ -63,3 +63,7 @@ the schema calls started working.
 I may next try chaning the caching options of shadow-cljs
 https://shadow-cljs.github.io/docs/UsersGuide.html#_compiler_cache
 `:build-options {:cache-level :jars}}`
+
+and now I tried it again with the node.js target and ran into the same problem. I killed the node.js
+process and then restarted it with the shadow-cljs cljs repl still open.
+Then reloaded the file into the cljs REPL and the (m/schema) calls worked.

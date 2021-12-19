@@ -28,6 +28,7 @@
 
 (comment
   (m/schema [:=> [:cat :int :int] :int] {:registry m/default-registry})
+  (m/schema [:=> [:cat :int :int] :int])
   (m/-lookup! :int nil nil)
 
   (m/schema? (m/-lookup! :int nil nil))
