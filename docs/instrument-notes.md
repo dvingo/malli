@@ -14,7 +14,7 @@ Why?
 Because it tells you when a contract is broken
 
 Because the malli fn instrumenting is syntactically separate from the fn def it can be added later and can more easily 
-be generated and also elimanted from production artifacts.
+be generated and also eliminated from production artifacts.
 
 Make a plan:
 1. gain understanding of instrument in clojure 
