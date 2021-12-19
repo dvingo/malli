@@ -1,4 +1,5 @@
 {:deps {:aliases [:shadow :sci]}
+ :dev-http {8000 "public"}
  :builds {:app {:target :browser
                 :closure-defines {malli.registry/type "default"}
                 :modules {:cljs {:entries [cljs.core]}
@@ -6,9 +7,13 @@
                                   :depends-on #{:cljs}}
                           :app {:entries [malli.app]
                                 :depends-on #{:malli}}}}
+          :play {:target :browser
+                 :output-dir "public/js/play"
+                 :asset-path "/js/play"
+                 :modules {:play {:entries [malli.instrument-app]}}}
           :node-js {:target :node-script
                     :output-to "build/node-app.js"
-                    :main malli.node-app/init
+                    :main malli.instrument-app/init
                     :devtools {:repl-pprint true}}
           :app-sci {:target :browser
                     :closure-defines {malli.registry/type "default"}

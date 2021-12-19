@@ -1950,19 +1950,27 @@
   ([?schema]
    (schema ?schema nil))
   ([?schema options]
+   (println "?schema: " ?schema)
    (cond
      (schema? ?schema) ?schema
      (into-schema? ?schema) (-into-schema ?schema nil nil options)
-     (vector? ?schema) (let [v #?(:clj ^IPersistentVector ?schema, :cljs ?schema)
+     (vector? ?schema)
+     (let [v #?(:clj ^IPersistentVector ?schema, :cljs ?schema)
                              t #?(:clj (.nth v 0), :cljs (nth v 0))
                              n #?(:clj (.count v), :cljs (count v))
                              ?p (when (> n 1) #?(:clj (.nth v 1), :cljs (nth v 1)))]
+       (println "vector: " )
                          (if (or (nil? ?p) (map? ?p))
                            (into-schema t ?p (when (< 2 n) (subvec ?schema 2 n)) options)
                            (into-schema t nil (when (< 1 n) (subvec ?schema 1 n)) options)))
-     :else (if-let [?schema' (and (-reference? ?schema) (-lookup ?schema options))]
-             (-pointer ?schema (schema ?schema' options) options)
-             (-> ?schema (-lookup! nil options) (recur options))))))
+     :else (do (println "in else branch, ?schema: " (pr-str ?schema))
+               (if-let [?schema' (and (-reference? ?schema) (-lookup ?schema options))]
+                 (do (println "in pointer branch") (-pointer ?schema (schema ?schema' options) options))
+                 (do (println "in not pointer branch")
+                     (-> ?schema
+                         (-lookup! nil options)
+                         (recur options))))))))
+
 
 (defn form
   "Returns the Schema form"
@@ -2380,6 +2388,7 @@
      (if (#{:=> :function} t) s (-fail! :invalid-=>schema {:type t, :schema s})))))
 
 (defn -register-function-schema! [ns name schema data]
+  (println "register data: " (pr-str data))
   (swap! -function-schemas* assoc-in [ns name] (merge data {:schema (function-schema schema), :ns ns, :name name})))
 
 #?(:clj
