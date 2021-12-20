@@ -1950,7 +1950,7 @@
   ([?schema]
    (schema ?schema nil))
   ([?schema options]
-   (println "?schema: " ?schema)
+   ;(println "?schema: " ?schema)
    (cond
      (schema? ?schema) ?schema
      (into-schema? ?schema) (-into-schema ?schema nil nil options)
@@ -2388,15 +2388,27 @@
      (if (#{:=> :function} t) s (-fail! :invalid-=>schema {:type t, :schema s})))))
 
 (defn -register-function-schema! [ns name schema data]
-  (println "register data: " (pr-str data))
-  (swap! -function-schemas* assoc-in [ns name] (merge data {:schema (function-schema schema), :ns ns, :name name})))
+  (println "register fn schema ns: " ns)
+  (println "register fn schema name: " name)
+  (swap! -function-schemas* assoc-in [ns name] (merge data {:schema schema
+                                                            ;(function-schema schema)
+                                                            , :ns ns, :name name})))
 
 #?(:clj
    (defmacro => [name value]
      (let [name' `'~(symbol (str name))
            ns' `'~(symbol (str *ns*))
-           sym `'~(symbol (str *ns*) (str name))]
-       `(do (-register-function-schema! ~ns' ~name' ~value ~(meta name)) ~sym))))
+           sym `'~(symbol (str *ns*) (str name))
+           ;schema (function-schema value)
+           ]
+       ;(-register-function-schema! ns' name' schema (meta name))
+       (-register-function-schema! ns' name' value (meta name))
+       `(do
+          (-register-function-schema! ~ns' ~name' (function-schema ~value) ~(meta name))
+          ~sym
+          ;(-register-function-schema! ~ns' ~name' ~value ~(meta name))
+            )
+       )))
 
 (defn -instrument
   "Takes an instrumentation properties map and a function and returns a wrapped function,

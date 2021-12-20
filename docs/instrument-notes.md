@@ -1,4 +1,9 @@
 2021-12-20
+in malli.core/=> and malli.core/-register-function-schema!
+I had to change the implementation to only store the schema vector and then also execute it at macro-expansion time 
+because we need the list of instrumented fn vars at macro time to implement this.
+So then I'll need to invoke malli.core/function-schema at runtime so that it works in cljs
+
 malli.instrument/-strument is the function that needs to be replaced by a macro in order to 
 be used from cljs
 
