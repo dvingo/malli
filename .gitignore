@@ -15,4 +15,5 @@ classes
 .clj-kondo
 .shadow-cljs
 build
-public
+public/**/*
+!public/index.html
