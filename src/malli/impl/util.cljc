@@ -2,7 +2,10 @@
   #?(:clj (:import (java.util.concurrent TimeoutException TimeUnit FutureTask)
                    (clojure.lang MapEntry LazilyPersistentVector))))
 
-(def ^:const +max-size+ #?(:clj Long/MAX_VALUE, :cljs (.-MAX_VALUE js/Number)))
+#?(:clj (def ^:const +max-size+ Long/MAX_VALUE))
+;; if you re-eval this ns in a cljs repl:
+;; ExceptionInfo Can't redefine a constant at line 4 malli/impl/util.cljc {:file "malli/impl/util.cljc", :line 4, :column 10, :tag :cljs/analysis-error}
+#?(:cljs (def +max-size+ (.-MAX_VALUE js/Number)))
 
 (defn -tagged [k v] #?(:clj (MapEntry. k v), :cljs (MapEntry. k v nil)))
 (defn -tagged? [v] (instance? MapEntry v))
