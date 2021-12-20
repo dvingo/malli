@@ -1,3 +1,31 @@
+2021-12-20
+malli.instrument/-strument is the function that needs to be replaced by a macro in order to 
+be used from cljs
+
+Steps:
+[] first try just calling malli.core/-instrument with a cljs function - all at runtime, no
+macros
+[] Then translate malli.instrument/-strument! to a cljs macro
+find-var -> ana-api/resolve &env sym
+alter-meta! ->  this exists as a function in cljs.core.cljs
+alter-var-root -> set!
+
+-------------------------
+
+start a dev setup:
+```bash
+./node_modules/.bin/shadow-cljs watch play
+```
+
+clojure repl for macros:
+in your tool's/editors equivalent:
+
+```bash
+clj -A:shadow
+```
+
+Add 
+
 2021-12-19
 
 What problem are you trying to solve?
@@ -67,3 +95,12 @@ https://shadow-cljs.github.io/docs/UsersGuide.html#_compiler_cache
 and now I tried it again with the node.js target and ran into the same problem. I killed the node.js
 process and then restarted it with the shadow-cljs cljs repl still open.
 Then reloaded the file into the cljs REPL and the (m/schema) calls worked.
+
+
+Steps:
+1. [] Define a var in a cljs file
+2. [] write a macro, in a clj file, to replace that var 
+3. [] invoke that macro in the cljs file with the var in 1.
+4. [] Evaluate the var defined in 1. - see it's value has changed via the macro.
+5. [] Do the same operation for every var in a given namespace.
+6. [] Do the same thing for every var in malli.core/-function-schemas*

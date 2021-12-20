@@ -1,12 +1,55 @@
 (ns malli.instrument-app
+  (:require-macros
+    [malli.new-one :refer [a-var]]
+    [malli.instrument-macros :refer [replace-var]])
   (:require
+    [helix.core :as h :refer [defnc $]]
+    [helix.hooks :as hooks]
+    [helix.dom :as d]
+    ["react-dom" :as rdom]
     [malli.provider :as mp]
     [malli.core :as m]
     [malli.registry :as mr]))
 
-(defn init []
-  (js/console.log "INIT!"))
+(defnc greeting
+  [{:keys [name]}] (d/div "Hello, " (d/strong name) "!"))
 
+(defnc app []
+  (let [[{:keys [name]}  set-state] (hooks/use-state {:name "Helix User"})]
+    (d/div
+      (d/h1 "Welcome!")
+      ;; create elements out of components
+      ($ greeting {:name name})
+      (d/input {:value name
+                :on-change #(set-state assoc :name (.. % -target -value))}))))
+
+(defn render
+  {:dev/after-load true}
+  []
+  (.log js/console "Render called")
+  (rdom/render ($ app) (js/document.getElementById "app")))
+
+(defn init []
+  (js/console.log "INIT!")
+  (render)
+  )
+
+(def replace-me 5)
+
+(defn replace-it []
+  (replace-var replace-me))
+(comment (replace-it))
+
+(comment
+  (cljs.core/unchecked-get malli.instrument-app "replace_me")
+  (.-replace_me malli.instrument-app)
+  (a-var replace-me)
+  replace-me
+  hi300
+  (replace-it)
+
+  v
+  )
 (defn add-things [a b]
   (+ a b))
 (m/=> add-things [:=> [:cat :int :int] :int])
@@ -18,6 +61,9 @@
   )
 
 (comment
+  (.-_function_schemas_STAR_ malli.core)
+  (.-__GT_t_malli$core54631 malli.core)
+  (js-keys malli.core)
   (mr/-schema (m/-registry) :int)
   (satisfies? malli.core.Schema (mr/-schema (m/-registry) :int))
   (implements? malli.core.Schema (mr/-schema (m/-registry) :int))
