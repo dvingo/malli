@@ -1,3 +1,27 @@
+2021-12-21
+Udpdate things to generate the code that runs the filters in cljs runtime.
+Now the major pieces are in place. need to:
+[] Add an atom in cljs that stores the instrumented vars in order to store the original fns
+[] use this atom to implement unstrument
+[] add gen support
+[] look into check! support as well.
+
+I've noticed when writing macros for clojurescript that if there are compilation failures in the 
+clojure namespace that the clojurescript compilation will silently fail - so from the users' point of view compilation 
+will succeed, and the only indication that the macro ns compilation failed is that the macro is returning stale code 
+This is something to watch out for and a good way to get the errors to show up is to introduce a new compilation failure
+in the macro ns - like introduce an unbound symbol.
+
+Because we cannot use functions to do the filtering I introduced just data notation:
+```clojure
+[:filter-var #{sum}]
+```
+To make it have the same API as the existing one I could create functions that return these tuples.
+
+
+Things are starting to work, the main issue will then become how to get this functionality in one namespace. I think 
+you'll have to convert malli.instrument to a cljc file - or add malli.instrument.cljs 
+
 2021-12-20
 in malli.core/=> and malli.core/-register-function-schema!
 I had to change the implementation to only store the schema vector and then also execute it at macro-expansion time 
