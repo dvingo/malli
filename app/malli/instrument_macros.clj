@@ -56,72 +56,43 @@
       ~(str *ns*)
       ~(symbol (str *ns*))
       (ns-publics '~(symbol (str *ns*)))
-      ;~(str *ns*)
-      ;~(symbol "malli.instrument" "ANOTHER-VAR3")
-      ;~(malli.dev/hello)
-      ;~(pr-str (keys (ana-api/resolve &env s)))
-      ;~(:meta (ana-api/resolve &env s))
-      ;~(:ns (ana-api/resolve &env s))
-      ;~(:op (ana-api/resolve &env s))
-      ;(var ~'init)
-      ]
-     )
+      ]))
 
-  ;`(set! ~s 300000)
-  ;`(def `'~s )
-  ;`('hi 5)
-  ;`(do
-  ;   (def ~'abcd 500)
-  ;   `[:the-sym ~s])
-  )
-;
-;(defmacro instrument []
-;  `(let [fn-schemas# (m/function-schemas)]
-;     ;; for each ns, replace each var in the ns with (-instrument {:schema schema} orig-fn)
-;     (for [ns# (keys fn-schemas#)]
-;       (for [[k# v#] (get fn-schemas# ns#)]
-;         (m/-instrument {:schema (:schema v#)
-;                         (symbol (ns# ))})
-;       ;(dossym# (keys (get fn-schemas# ns#))]
-;       ;  (let [sym2# (get ns# sym#)]
-;       ;    (m/-instrument {:schema (:schema sym2#)}
-;       ;                   (symbol ~(:ns sym2#) ~(:name sym2#))))
-;       ;  )
-;       )
-;    )))
+(defn emit-instrument-fn [{:keys [schema scope report filters gen]} ns-sym fn-sym]
+  (let [opts (cond-> {:schema `(m/function-schema ~schema)}
+                     gen (assoc :gen gen)
+                     scope (assoc :scope scope)
+                     report (assoc :report report))]
+    (if filters
+      `(do
+         (when (some #(% ~ns-sym (var ~fn-sym) ~opts) ~filters)
+           (.log js/console "instrumenting FN: " '~fn-sym)
+           (set! ~fn-sym (m/-instrument ~opts ~fn-sym))
+           '~fn-sym))
+      `(do
+         (.log js/console "instrumenting FN: " '~fn-sym)
+         (set! ~fn-sym (m/-instrument ~opts ~fn-sym))
+         '~fn-sym))))
 
-(defn emit-instrument-fn [schema-vector fn-sym]
-  ;(.log js/console "instrumenting: " ~(str fn-sym))
-  ;`[schema-vector]
-  (println "fn-sym: " (pr-str fn-sym))
-  `(set!
+(defn -filter-ns [& ns] (fn [n _ _] ((set ns) n)))
+(defn -filter-schema [f] (fn [_ _ {:keys [schema]}] (f schema)))
 
-     ~fn-sym
-     (m/-instrument {:schema (m/function-schema ~schema-vector)} ~fn-sym))
-  )
-
-(defmacro instrument2 []
+(defmacro instrument2
+  "Instruments all functions in the function-schemas atom."
+  [{:keys [scope report filters gen] :as opts}]
   ;; for each ns -> for each sym, invoke instrument -> except return this as data not as code
   ;; so the function schema is created at runtime
   (let [ns->syms (m/function-schemas)
         ret      (reduce
                    (fn [acc [[_quote ns-sym] sym-map]]
-                     (println "name ns-sym: " ns-sym)
                      (reduce-kv
                        (fn [acc' [_quote fn-sym] inst-map]
-                         (println "fn-sym: " fn-sym)
-                         (conj acc' (emit-instrument-fn (:schema inst-map)
-                                                        (symbol (str ns-sym) (str fn-sym)))))
+                         (conj acc'
+                               (emit-instrument-fn (assoc opts :schema (:schema inst-map))
+                                                   ns-sym
+                                                   (symbol (str ns-sym) (str fn-sym)))))
                        acc sym-map))
-                   ['do]
-                   ns->syms
-                   )]
-    (println "would return: ")
-    (prn (seq ret))
-    (seq ret)
-
-    ;(for [ns-sym ns->syms]
-    ;  (for [fn-sym ns-sym]
-    ;    (into '(do)
-    ;          (emit-instrument-fn (:schema fn-sym) (symbol (str (:ns fn-sym)) (str fn-sym))))))
-    ))
+                   []
+                   ns->syms)]
+    (println "Returning: ") (prn ret)
+    ret))

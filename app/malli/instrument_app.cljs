@@ -1,8 +1,7 @@
 (ns malli.instrument-app
   (:require-macros
     ;[malli.new-one :refer [a-var]]
-    [malli.instrument-macros :as im :refer [instrument2 replace-var]
-     ])
+    [malli.instrument-macros :as im :refer [instrument2 replace-var]])
   (:require
     [helix.core :as h :refer [defnc $]]
     [helix.hooks :as hooks]
@@ -18,13 +17,16 @@
   [{:keys [name]}] (d/div "Hello, " (d/strong name) "!"))
 
 (defnc app []
-  (let [[{:keys [name]}  set-state] (hooks/use-state {:name "Helix User"})]
+  (let [[{:keys [name]} set-state!] (hooks/use-state {:name "Helix User"})]
     (d/div
       (d/h1 "Welcome!")
       ;; create elements out of components
       ($ greeting {:name name})
-      (d/input {:value name
-                :on-change #(set-state assoc :name (.. % -target -value))}))))
+      (d/button {:on-click #(do
+                              (set-state! {:name "changed"})
+                              (.log js/console "clicked"))} "button")
+      (d/input {:value     name
+                :on-change #(set-state! assoc :name (.. % -target -value))}))))
 
 (defn render
   {:dev/after-load true}
@@ -53,7 +55,25 @@
 ;(def fn-schemas (malli.instrument-macros/instrument))
 ;(def x (im/instrument2))
 
-(comment (im/instrument2))
+(defn filter-var [f] (fn [n s d]
+                       (js/console.log "IN FILTER!!!!!!!!!!!!!!")
+                       (println "f: " f)
+                       (println "sym: " s)
+                       (println "d : " d)
+                       (println "d : " (m/schema (:schema d)))
+                       (println "d3 : " (m/schema? (:schema d)))
+                       (println "d3 : " (m/ast (:schema d)))
+                       (println "d4 : " (m/-children (:schema d)))
+                       (println "type sym: " (type s))
+                       (println "meta of sym: " (meta s))
+                       ;(println "f contains s? " (pr-str (contains? f s)))
+                       (f s)))
+
+(comment (im/instrument2 nil))
+(comment (im/instrument2 {:report  (pretty/reporter)
+                          :filters [(filter-var #{#'sum}) ]
+                          }))
+
 (comment
   (sum 5 10)
   (sum "5" 10)
