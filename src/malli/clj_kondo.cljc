@@ -171,23 +171,14 @@
 (defn collect
   ([] (collect nil))
   ([ns]
-   (let [-collect (fn [k]
-                    (and
-                      ;; during macroexpansion in cljs symbols are showing up as: (quote your-name-here)
-                      #?(:clj (not (instance? clojure.lang.Cons k)))
-                      (or
-                        (nil? ns)
-                        (= k (symbol (str ns))))))]
-     (for [[k vs] (m/function-schemas)
-           :when (-collect k)
-           [_ v] vs v (from v)]
-       v))))
+   (let [-collect (fn [k] (or (nil? ns) (= k (symbol (str ns)))))]
+     (for [[k vs] (m/function-schemas) :when (-collect k) [_ v] vs v (from v)] v))))
 
 (defn linter-config [xs]
   (reduce
-    (fn [acc {:keys [ns arity] sym-name :name :as data}]
-      (assoc-in acc
-        [:linters :type-mismatch :namespaces ns sym-name :arities arity]
+    (fn [acc {:keys [ns name arity] :as data}]
+      (assoc-in
+        acc [:linters :type-mismatch :namespaces ns name :arities arity]
         (select-keys data [:args :ret :min-arity])))
     {:linters {:unresolved-symbol {:exclude ['(malli.core/=>)]}}} xs))
 
