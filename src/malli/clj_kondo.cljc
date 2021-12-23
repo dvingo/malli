@@ -185,4 +185,5 @@
         (select-keys data [:args :ret :min-arity])))
     {:linters {:unresolved-symbol {:exclude ['(malli.core/=>)]}}} xs))
 
-#?(:clj (defmacro emit! [] (-> (collect) (linter-config) (save!)) nil))
+#?(:clj
+   (defmacro emit! [] (-> (collect) (linter-config) (save!)) nil))
