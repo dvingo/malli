@@ -6,6 +6,7 @@
   (:require
     [malli.clj-kondo :as mari :include-macros true]
     [malli.instrument.cljs :as im2]
+    [malli.helpers :as helpers]
     [helix.core :as h :refer [defnc $]]
     [helix.hooks :as hooks]
     [helix.dom :as d]
@@ -85,6 +86,7 @@
   (sum 1 "2")
 
   (sum 1 2)
+  (sum 2)
 
   )
 ;(comment (im2/instrument2))
@@ -93,6 +95,10 @@
 (comment (im2/instrument! {:report (pretty/reporter)
                           ;:filters [(im2/filter-var #{#'sum})]
                           }))
+
+(comment
+  (helpers/helper1 "a" 5)
+  )
 ;
 ;(comment
 ;  (sum 5 10)
