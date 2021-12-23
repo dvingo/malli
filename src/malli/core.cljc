@@ -2377,6 +2377,7 @@
 ;;
 
 (defonce ^:private -function-schemas* (atom {}))
+(comment (reset! -function-schemas* {}))
 (defn function-schemas [] @-function-schemas*)
 
 (defn function-schema
@@ -2389,25 +2390,17 @@
 (defn -register-function-schema! [ns name schema data]
   (println "register fn schema ns: " ns)
   (println "register fn schema name: " name)
-  (swap! -function-schemas* assoc-in [ns name] (merge data {:schema schema
-                                                            ;(function-schema schema)
-                                                            , :ns ns, :name name})))
+  (swap! -function-schemas* assoc-in [ns name] (merge data {:schema (function-schema schema), :ns ns, :name name})))
 
 #?(:clj
    (defmacro => [name value]
      (let [name' `'~(symbol (str name))
            ns' `'~(symbol (str *ns*))
-           sym `'~(symbol (str *ns*) (str name))
-           ;schema (function-schema value)
-           ]
-       ;(-register-function-schema! ns' name' schema (meta name))
-       (-register-function-schema! ns' name' value (meta name))
-       `(do
-          (-register-function-schema! ~ns' ~name' (function-schema ~value) ~(meta name))
-          ~sym
-          ;(-register-function-schema! ~ns' ~name' ~value ~(meta name))
-            )
-       )))
+           sym `'~(symbol (str *ns*) (str name))]
+       ;; in cljs we need to register the schema in clojure so it is visible in the -function-schemas* map at macroexpansion time.
+       (when (some? (:ns &env))
+         (-register-function-schema! (symbol (str *ns*)) name value (meta name)))
+       `(do (-register-function-schema! ~ns' ~name' ~value ~(meta name)) ~sym))))
 
 (defn -instrument
   "Takes an instrumentation properties map and a function and returns a wrapped function,
