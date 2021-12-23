@@ -1,4 +1,7 @@
 2021-12-23
+
+- i need to try add schemas for multi-arity functions and make sure those work.
+
 was seeing weird behavior in cljs, malli.clj-kondo - had to add this, but seems to not be needed anymore.
 I think this is because I no longer register the function schemas using quoted symbols.
 
