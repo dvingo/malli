@@ -1,3 +1,11 @@
+2021-12-23
+was seeing weird behavior in cljs, malli.clj-kondo - had to add this, but seems to not be needed anymore.
+I think this is because I no longer register the function schemas using quoted symbols.
+
+;;; during macroexpansion in cljs symbols are showing up as: (quote your-name-here)
+
+;#?(:clj (not (instance? clojure.lang.Cons k)))
+
 2021-12-21
 Udpdate things to generate the code that runs the filters in cljs runtime.
 Now the major pieces are in place. need to:
