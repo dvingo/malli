@@ -1,8 +1,11 @@
 (ns malli.instrument-app
   (:require-macros
+    ;[malli.clj-kondo :as mari]
     ;[malli.new-one :refer [a-var]]
     [malli.instrument-macros :as im :refer [instrument2 replace-var]])
   (:require
+    [malli.clj-kondo :as mari :include-macros true]
+    [malli.instrument.cljs :as im2]
     [helix.core :as h :refer [defnc $]]
     [helix.hooks :as hooks]
     [helix.dom :as d]
@@ -12,6 +15,12 @@
     [malli.core :as m]
     ;[malli.registry :as mr]
     ))
+
+(comment
+  (mari/emit!)
+  (mari/collect)
+  )
+;(mari/linter-config (mari/collect) )
 
 (defnc greeting
   [{:keys [name]}] (d/div "Hello, " (d/strong name) "!"))
@@ -36,58 +45,69 @@
 
 (defn init []
   (js/console.log "INIT!")
-  (render)
-  )
+  (render))
+
 (defn sum [a b] (+ a b))
+
+(comment
+  (sum 1000)
+  )
 
 (def sum2
   (m/-instrument {:schema (m/schema [:=> [:cat :int :int] :int])
                   :report (pretty/reporter)}
-                 sum))
+    sum))
 (m/=> sum [:=> [:cat :int :int] :int])
+(comment (sum 1 2))
+(comment (sum "1" 2))
 ;(set! sum
-
 ;      (m/-instrument {:schema (m/schema [:=> [:cat :int :int] :int])
 ;                      :report (pretty/reporter)}
 ;                     sum))
 
-(m/function-schemas)
+(comment
+  (m/function-schemas)
+
+
+  )
+
+;(m/function-schemas)
 ;(def fn-schemas (malli.instrument-macros/instrument))
 ;(def x (im/instrument2))
 
-(defn filter-var [f] (fn [n s d]
-                       (js/console.log "IN FILTER!!!!!!!!!!!!!!")
-                       (println "f: " f)
-                       (println "sym: " s)
-                       (println "d : " d)
-                       (println "d : " (m/schema (:schema d)))
-                       (println "d3 : " (m/schema? (:schema d)))
-                       (println "d3 : " (m/ast (:schema d)))
-                       (println "d4 : " (m/-children (:schema d)))
-                       (println "type sym: " (type s))
-                       (println "meta of sym: " (meta s))
-                       ;(println "f contains s? " (pr-str (contains? f s)))
-                       (f s)))
+(comment (im2/instrument! nil))
 
-(comment (im/instrument2 nil))
-(comment (im/instrument2 {:report  (pretty/reporter)
-                          :filters [(filter-var #{#'sum}) ]
-                          }))
 
 (comment
-  (sum 5 10)
-  (sum "5" 10)
-  (sum2 5 10)
-  (sum2 "5" 10)
+  @im2/instrumented-vars
+  ((get @im2/instrumented-vars `sum) 1 "2")
+
+  (sum 1 "2")
+
+  (sum 1 2)
+
   )
+;(comment (im2/instrument2))
 
-(def replace-me 5)
 
-(defn replace-it []
-  (replace-var replace-me))
+(comment (im2/instrument! {:report (pretty/reporter)
+                          ;:filters [(im2/filter-var #{#'sum})]
+                          }))
+;
+;(comment
+;  (sum 5 10)
+;  (sum "5" 10)
+;  (sum2 5 10)
+;  (sum2 "5" 10)
+;  )
+;
+;(def replace-me 5)
+;
+;(defn replace-it []
+;  (replace-var replace-me))
 
-(comment (replace-it))
-
+;(comment (replace-it))
+;
 ;(comment
 ;  (cljs.core/unchecked-get malli.instrument-app "replace_me")
 ;  (.-replace_me malli.instrument-app)
@@ -178,3 +198,7 @@
 ;  (m/schema [:=> [:tuple [int?] [int?]] [int?]])
 ;  (m/schema [:tuple [int?] [int?]])
 ;  )
+
+
+
+
