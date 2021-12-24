@@ -1962,10 +1962,14 @@
                          (if (or (nil? ?p) (map? ?p))
                            (into-schema t ?p (when (< 2 n) (subvec ?schema 2 n)) options)
                            (into-schema t nil (when (< 1 n) (subvec ?schema 1 n)) options)))
-     :else (do (println "in else branch, ?schema: " (pr-str ?schema))
+     :else (do
+             ;(println "in else branch, ?schema: " (pr-str ?schema))
                (if-let [?schema' (and (-reference? ?schema) (-lookup ?schema options))]
-                 (do (println "in pointer branch") (-pointer ?schema (schema ?schema' options) options))
-                 (do (println "in not pointer branch")
+                 (do
+                   ;(println "in pointer branch")
+                     (-pointer ?schema (schema ?schema' options) options))
+                 (do
+                   ;(println "in not pointer branch")
                      (-> ?schema
                          (-lookup! nil options)
                          (recur options))))))))
