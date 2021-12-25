@@ -1,3 +1,10 @@
+2021-12-25
+Trying to implement the atom watch in a macro is probably a no-go because set! requires a symbol literal at the callsite.
+Instead the current implementation works fine with something like shadow-cljs dev/after-load
+It's a tradeoff because collect! will have to run on all loaded ns'es, but I'm not sure of another solution currently.
+
+I think the remaining piece functionality-wise is added support for the other filters, gen support and check! support.
+
 2021-12-23
 
 - i need to try add schemas for multi-arity functions and make sure those work.
