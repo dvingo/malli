@@ -1,4 +1,5 @@
 (ns malli.clj-kondo
+  #?(:cljs (:require-macros [malli.clj-kondo]))
   (:require #?(:clj [clojure.java.io :as io])
             [malli.core :as m]))
 
