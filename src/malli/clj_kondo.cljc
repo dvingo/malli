@@ -148,6 +148,7 @@
 
 #?(:clj
    (defn save! [config]
+     (println "SAVING KONDO")
      (let [cfg-file (io/file ".clj-kondo" "configs" "malli" "config.edn")]
        (io/make-parents cfg-file)
        (spit cfg-file config)

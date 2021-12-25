@@ -1,4 +1,5 @@
 (ns malli.instrument-app
+  (:require-macros [malli.dev.cljs :as dev])
   (:require
     [malli.clj-kondo :as mari]
     [malli.instrument.cljs :as im2]
@@ -75,12 +76,25 @@
   (sum 2)
 
   )
+
+(defn plus1 [a] (inc a))
+(m/=> plus1 [:=> [:cat :int] :int])
+
+(defn plus2 [a b] (+ a b))
+(m/=> plus2 [:=> [:cat :string :int] :int])
+(comment
+  (plus2 5 "a")
+  (let [x 'plus2]
+    (set! x )
+    (var x))
+  )
+
 ;(comment (im2/instrument2))
 (comment
-  (def
-    my-thing
-    (im2/play))
-  (first my-thing)
+  (im2/unstrument! nil)
+  (im2/instrument! {})
+  (macroexpand '(dev/start2! {}))
+  (dev/start2! {})
   (im2/collect!)
   (im2/collect! {:ns ['malli.instrument-app]})
   (minus 5)
