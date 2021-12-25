@@ -30,7 +30,7 @@
                  :main-opts ["-m" "jmh.main"]}
            :shadow {:extra-paths ["app"]
                     :extra-deps {lilactown/helix {:mvn/version "0.1.5"}
-                                 thheller/shadow-cljs {:mvn/version "2.16.8"}}}
+                                 thheller/shadow-cljs {:mvn/version "2.16.9"}}}
            :slow {:extra-deps {io.dominic/slow-namespace-clj
                                {:git/url "https://git.sr.ht/~severeoverfl0w/slow-namespace-clj"
                                 :sha "f68d66d99d95f4d2bfd61f001e28a8ad7c4d3a12"}}

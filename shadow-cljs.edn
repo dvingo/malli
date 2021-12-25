@@ -8,6 +8,7 @@
                                          :app   {:entries    [malli.app]
                                                  :depends-on #{:malli}}}}
             :play     {:target     :browser
+                       :build-options {:cache-level :off}
                        :output-dir "public/js/play"
                        :asset-path "/js/play"
                        :modules    {:play {:entries [malli.instrument-app]
