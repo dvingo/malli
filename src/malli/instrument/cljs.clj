@@ -19,9 +19,8 @@
          (set! ~fn-sym (m/-instrument ~opts ~fn-sym))
          '~fn-sym))))
 
-(defmacro instrument!
-  "Instruments all functions in the function-schemas atom."
-  [{:keys [_scope _report _filters _gen] :as opts}]
+(defn instrument*
+  [{:keys [_scope _report _filters _gen data] :or {data (m/function-schemas)} :as opts}]
   (reduce
     (fn [acc [ns-sym sym-map]]
       (reduce-kv
@@ -32,7 +31,12 @@
               (symbol (str ns-sym) (str fn-sym)))))
         acc sym-map))
     []
-    (m/function-schemas)))
+    data))
+
+(defmacro instrument!
+  "Instruments all functions in the function-schemas atom."
+  [{:keys [_scope _report _filters _gen] :as opts}]
+  (instrument* opts))
 
 (defn emit-unstrument-fn [{:keys [schema filters] :as opts} ns-sym fn-sym]
   (let [opts (assoc (select-keys opts [:gen :scope :report])
@@ -49,7 +53,7 @@
          ~replace-with-orig)
       replace-with-orig)))
 
-(defmacro unstrument!
+(defn unstrument*
   [opts]
   (let [r (reduce
             (fn [acc [ns-sym sym-map]]
@@ -64,6 +68,8 @@
             (m/function-schemas))]
     `(filterv some? ~r)))
 
+(defmacro unstrument! [opts] (unstrument* opts))
+
 (defn -collect! [simple-name {:keys [meta] :as var-map}]
   (let [ns     (symbol (namespace (:name var-map)))
         schema (:malli/schema meta)]
@@ -75,8 +81,11 @@
 (defn -sequential [x] (cond (set? x) x (sequential? x) x :else [x]))
 
 (defmacro collect!
+  "Adds all functions that have :malli/schema metadata to the function schemas atom."
   ([] `(collect! ~{:ns (symbol (str *ns*))}))
   ([{:keys [ns]}]
+   (println "Collecting: " ns)
+
    (reduce (fn [acc [var-name var-map]] (let [v (-collect! var-name var-map)] (cond-> acc v (conj v))))
      #{}
      (mapcat (fn [n]
@@ -86,3 +95,6 @@
                                   :else (symbol (str n)))]
                  (ana-api/ns-publics ns-sym)))
        (-sequential ns)))))
+
+(defn collect-all-ns* []
+  `(collect! {:ns ~(ana-api/all-ns)}))
