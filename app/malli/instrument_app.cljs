@@ -3,21 +3,20 @@
   (:require
     [malli.clj-kondo :as mari]
     [malli.instrument.cljs :as im2]
-    [malli.helpers :as helpers]
     [helix.core :as h :refer [defnc $]]
     [helix.hooks :as hooks]
+    [malli.helpers]
     [helix.dom :as d]
     [malli.dev.pretty :as pretty]
+    [malli.generator :as mg]
     ["react-dom" :as rdom]
     [malli.core :as m]))
 
 (comment
   (type (first (keys @im2/instrumented-vars)))
-  (mari/emit!)
+  (mari/emit-cljs!)
   (mari/collect)
-
-  )
-;(mari/linter-config (mari/collect) )
+)
 
 (defnc greeting
   [{:keys [name]}] (d/div "Hello, " (d/strong name) "!"))
@@ -48,6 +47,7 @@
 
 (comment
   (sum 1000)
+  (sum 1 1)
   )
 
 (def sum2
@@ -68,40 +68,87 @@
   [x]
   (dec x))
 
+(defn plus-gen
+  "a normal clojure function, no dependencies to malli"
+  {:malli/schema [:=> [:cat :int] [:int {:min 6}]]}
+  [x]
+  (dec x))
+
 (comment
   @im2/instrumented-vars
   ((get @im2/instrumented-vars `sum) 1 "2")
   (sum 1 "2")
   (sum 1 2)
   (sum 2)
-
   )
 
 (defn plus1 [a] (inc a))
 (m/=> plus1 [:=> [:cat :int] :int])
 
-(defn plus2 [a b] (+ a b))
+(defn plus2
+  {:validate? true}
+  [a b]
+  (+ a b))
 (m/=> plus2 [:=> [:cat :string :int] :int])
+
+;; multi-arity function
+(defn plus-many
+  ([a] (inc a))
+  ([a b & others]
+   (apply + a b others)))
+
+(m/=> plus-many
+  [:function
+   [:=> [:cat :int] :int]
+   [:=> [:cat :int :int [:* :int]] :int]])
+
+(def pow-gen
+  (m/-instrument
+    {:schema [:function
+              [:=> [:cat :int] [:int {:max 6}]]
+              [:=> [:cat :int :int] [:int {:max 6}]]]
+     :gen mg/generate}))
+
+(comment (im2/check))
 (comment
-  (plus2 5 "a")
-  (let [x 'plus2]
-    (set! x )
-    (var x))
+  (macroexpand '(im2/check))
   )
 
-;(comment (im2/instrument2))
+
+(comment (pow-gen 10))
+
+(comment
+  (plus-many 5)
+  (plus-many 5 8 1 0 20)
+  (plus-many "hi")
+  )
+
 (comment
   (im2/unstrument! nil)
   (im2/instrument! {})
+  (im2/instrument! {:report  (pretty/reporter)
+                    :filters [
+                              ;(im2/filter-var #{#'sum})
+
+                              (im2/filter-var (fn [x]
+                                                (println "Checking var: " x)
+                                                (println "meta: " (:validate? (meta x)))
+                                                (:validate? (meta x))
+                                                ))
+                              ;(im2/filter-ns 'malli.instrument-app 'malli.helpers)
+                              ;(im2/filter-ns 'malli.instrument-app)
+
+                              ]})
   (macroexpand '(dev/start2! {}))
   (dev/start2! {})
+  (dev/start2! {:report (pretty/reporter)})
   (im2/collect!)
   (im2/collect! {:ns ['malli.instrument-app]})
   (minus 5)
-  (m/function-schemas)
-  )
-(comment (im2/instrument! {:report (pretty/reporter)
-                          ;:filters [(im2/filter-var #{#'sum})]
-                          }))
-(comment (im2/unstrument! nil))
-(comment (helpers/helper1 "a" 5) )
+  (m/function-schemas))
+
+(comment
+  (im2/instrument! {:report (pretty/reporter)
+                           :filters [(im2/filter-var #{#'sum})]
+                           }))
+

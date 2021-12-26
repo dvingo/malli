@@ -1,4 +1,8 @@
 2021-12-25
+[x] Filters
+  [x] -filter-ns
+  [x] check that filter by metadata works
+
 Trying to implement the atom watch in a macro is probably a no-go because set! requires a symbol literal at the callsite.
 Instead the current implementation works fine with something like shadow-cljs dev/after-load
 It's a tradeoff because collect! will have to run on all loaded ns'es, but I'm not sure of another solution currently.

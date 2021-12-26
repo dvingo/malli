@@ -187,4 +187,7 @@
     {:linters {:unresolved-symbol {:exclude ['(malli.core/=>)]}}} xs))
 
 #?(:clj
-   (defmacro emit! [] (-> (collect) (linter-config) (save!)) nil))
+   (defn emit! [] (-> (collect) (linter-config) (save!)) nil))
+
+#?(:clj
+   (defmacro emit-cljs! [] (emit!)))

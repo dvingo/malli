@@ -1,14 +1,15 @@
 (ns malli.instrument.cljs
   (:require
     [cljs.analyzer.api :as ana-api]
-    [malli.core :as m]))
+    [malli.core :as m]
+    [malli.generator :as mg]))
 
 (defn emit-instrument-fn [{:keys [schema filters] :as opts} ns-sym fn-sym]
   (let [opts (assoc (select-keys opts [:gen :scope :report])
                ;; At macroexpansion time the schema will be a JVM object, this converts it to a JS object.
                :schema `(m/function-schema ~(m/form schema)))]
     (if filters
-      `(when (some #(% ~ns-sym (var ~fn-sym) ~opts) ~filters)
+      `(when (some #(% '~ns-sym (var ~fn-sym) ~opts) ~filters)
          (.log js/console "instrumenting FN: " '~fn-sym)
          (swap! instrumented-vars #(assoc % '~fn-sym ~fn-sym))
          (set! ~fn-sym (m/-instrument ~opts ~fn-sym))
@@ -21,17 +22,19 @@
 
 (defn instrument*
   [{:keys [_scope _report _filters _gen data] :or {data (m/function-schemas)} :as opts}]
-  (reduce
-    (fn [acc [ns-sym sym-map]]
-      (reduce-kv
-        (fn [acc' fn-sym schema-map]
-          (conj acc'
-            (emit-instrument-fn (assoc opts :schema (:schema schema-map))
-              ns-sym
-              (symbol (str ns-sym) (str fn-sym)))))
-        acc sym-map))
-    []
-    data))
+  (let [r
+        (reduce
+          (fn [acc [ns-sym sym-map]]
+            (reduce-kv
+              (fn [acc' fn-sym schema-map]
+                (conj acc'
+                  (emit-instrument-fn (assoc opts :schema (:schema schema-map))
+                    ns-sym
+                    (symbol (str ns-sym) (str fn-sym)))))
+              acc sym-map))
+          []
+          data)]
+    `(filterv some? ~r)))
 
 (defmacro instrument!
   "Instruments all functions in the function-schemas atom."
@@ -80,12 +83,32 @@
 
 (defn -sequential [x] (cond (set? x) x (sequential? x) x :else [x]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Generative testing function return values vs parameters
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn emit-check [{:keys [schema]} fn-sym]
+  `(let [schema# (m/function-schema ~(m/form schema))
+         fn#     (or (get @instrumented-vars '~fn-sym) '~fn-sym)]
+     (when-let [err# (mg/check schema# fn#)]
+       ['~fn-sym err#])))
+
+(defn check* []
+  (let [r (reduce (fn [acc [ns-sym sym-map]]
+                    (reduce-kv (fn [acc' fn-sym schema-map]
+                                 (conj acc' (emit-check schema-map (symbol (str ns-sym) (str fn-sym)))))
+                      acc sym-map))
+            []
+            (m/function-schemas))]
+    `(into {} ~r)))
+
+(defmacro check []
+  (check*))
+
 (defmacro collect!
   "Adds all functions that have :malli/schema metadata to the function schemas atom."
   ([] `(collect! ~{:ns (symbol (str *ns*))}))
   ([{:keys [ns]}]
-   (println "Collecting: " ns)
-
    (reduce (fn [acc [var-name var-map]] (let [v (-collect! var-name var-map)] (cond-> acc v (conj v))))
      #{}
      (mapcat (fn [n]
