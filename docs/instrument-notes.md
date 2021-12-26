@@ -2,6 +2,9 @@
 [x] Filters
   [x] -filter-ns
   [x] check that filter by metadata works
+[] When instrument is called if there is a gen function that should be used in place of the actual
+I think that's the last piece of functionality and then adding some tests for these and that should be it.
+
 
 Trying to implement the atom watch in a macro is probably a no-go because set! requires a symbol literal at the callsite.
 Instead the current implementation works fine with something like shadow-cljs dev/after-load
