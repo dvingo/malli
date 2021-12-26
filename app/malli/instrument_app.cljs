@@ -64,7 +64,9 @@
 
 (defn minus
   "a normal clojure function, no dependencies to malli"
-  {:malli/schema [:=> [:cat :int] [:int {:min 6}]]}
+  {:malli/schema [:=> [:cat :int] [:int {:min 6}]]
+   :malli/gen true
+   :malli/scope #{:input :output}}
   [x]
   (dec x))
 
@@ -125,18 +127,27 @@
 
 (comment
   (im2/unstrument! nil)
-  (im2/instrument! {})
+  (im2/instrument! {:gen mg/generate})
+  (im2/collect!)
+  (minus 8)
+  ;; should always be generated
+  (pow-gen 10)
+  ;; should not be generated
+  (plus-many 10)
+
+
+
   (im2/instrument! {:report  (pretty/reporter)
                     :filters [
                               ;(im2/filter-var #{#'sum})
 
-                              (im2/filter-var (fn [x]
+                              (im2/-filter-var (fn [x]
                                                 (println "Checking var: " x)
                                                 (println "meta: " (:validate? (meta x)))
                                                 (:validate? (meta x))
                                                 ))
-                              ;(im2/filter-ns 'malli.instrument-app 'malli.helpers)
-                              ;(im2/filter-ns 'malli.instrument-app)
+                              ;(im2/-filter-ns 'malli.instrument-app 'malli.helpers)
+                              ;(im2/-filter-ns 'malli.instrument-app)
 
                               ]})
   (macroexpand '(dev/start2! {}))
@@ -145,10 +156,30 @@
   (im2/collect!)
   (im2/collect! {:ns ['malli.instrument-app]})
   (minus 5)
+  (minus "5")
   (m/function-schemas))
+
+(defn minus2
+  "kukka"
+  {:malli/schema [:=> [:cat :int] [:int {:min 6}]]
+   :malli/scope #{:input :output}}
+  [x] (dec x))
+
+(defn ->minus [] minus2)
+(defn minus-test [x] (dec x))
+(comment (im2/instrument! {}))
+(comment ((->minus) 5))
+(defn plus-it [x] (inc x))
+(m/=> plus-it [:=> [:cat :int] [:int {:max 6}]])
+(comment
+  (try
+    (plus-it 6)
+    (catch js/Error e
+      (println "got err: " e)))
+  (im2/instrument! {}))
 
 (comment
   (im2/instrument! {:report (pretty/reporter)
-                           :filters [(im2/filter-var #{#'sum})]
+                           :filters [(im2/-filter-var #{#'sum})]
                            }))
 

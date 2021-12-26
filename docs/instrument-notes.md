@@ -1,3 +1,54 @@
+2021-12-26
+[] Update all API equivalent cljs functions/macros to match the clojure implementation versions.
+[] Add tests
+  [x] Run existing tests (./bin/kaocha)
+  [] 
+
+From the documentation alone I'm not sure what the correct behavior of function body generation should be.
+
+It seems to me that when you call: `(im2/instrument! {:gen mg/generate})`
+you would only want to generate function bodies for schemas that opt-in to this (via metadata `{:malli/gen true}`)
+but the implementation in malli.instrument.clj looks like it will always generate a body regardless if the function with 
+a schema specifies malli/gen metadata.
+
+I can verify this with code in a clojure repl
+
+Verified the body is replaced even if the function doesn't opt-in
+
+```clojure 
+(defn plus-many
+  ([a] (inc a))
+  ([a b & others]
+   (apply + a b others)))
+
+(m/=> plus-many
+  [:function
+   [:=> [:cat :int] :int]
+   [:=> [:cat :int :int [:* :int]] :int]])
+
+(comment
+  (plus-many 1)
+  (plus-many 1 2 3)
+  (instrument!)
+  ;; this will run the normal body
+  (plus-many 1 2 3)
+  
+  
+  (instrument! {:gen mg/generate})
+  ;; this will return a generated value based on the schema
+  (plus-many 1 2 3))
+```
+
+So I can just implement things in cljs following the same setup as clj for now and ask about it in the PR.
+One idea of the design choice here is that a function can specify :malli/gen false to opt-out.
+
+Add metadata to a function
+[x] :malli/gen  => true
+[x] :malli/gen  => function of schema to return value - figure out actual signature (see malli.instrument/-strument! implementation)
+[x] :malli/scope #{:input} and #{:output}
+  - I think this already works because the implementation delegates to  malli.core/-instrument which handles the scope param
+  - had to fix the merging of options
+
 2021-12-25
 [x] Filters
   [x] -filter-ns
