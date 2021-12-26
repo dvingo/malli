@@ -2,7 +2,23 @@
 [] Update all API equivalent cljs functions/macros to match the clojure implementation versions.
 [] Add tests
   [x] Run existing tests (./bin/kaocha)
-  [] 
+  [x] add malli.instrument.cljs tests
+
+There is a bug where if you start a clojurescript repl and then a clojure one the malli function schemas in the cljs side 
+break - they may be broken in clj too, need to verify it.
+I thought the two repls would be running in their own processes and not share data/memory but maybe that's false.
+The issue I think is the malli.core/-function-schemas* may be colliding between the two.
+
+I also want to test this in library code 
+[] update another project's deps.edn to point at local/root of this branch
+[] start a repl in clj in that project 
+[] start a shadow-cljs repl in that project
+[] see if the error shows up.
+  if it doesn't then this is a development-time only concern on malli itself and it's not worth the cost to investigate.
+  if it does materialize then you need to fix it because that's really annoying and the solution seems to be to restart the cljs 
+ repl - a no-go in clj philosophy
+  - the obvious solution is to somehow tag each schema that is stored in the malli.core/-function-schemas* atom
+  - either with metadata or, because they're a map, just add a namespaced k/v pair.
 
 From the documentation alone I'm not sure what the correct behavior of function body generation should be.
 
