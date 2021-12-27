@@ -3,6 +3,8 @@
 [] Add tests
   [x] Run existing tests (./bin/kaocha)
   [x] add malli.instrument.cljs tests
+  [] see if you can get thrown-with-msg? to work in cljs
+   [] check the type of the exception 
 
 There is a bug where if you start a clojurescript repl and then a clojure one the malli function schemas in the cljs side 
 break - they may be broken in clj too, need to verify it.

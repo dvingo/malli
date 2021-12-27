@@ -20,8 +20,6 @@
                            :else (dissoc $ :gen)))
         replace-var-code
                    `(do
-                      (.log js/console "instrumenting FN: " '~fn-sym)
-                      (.log js/console "with opts: " ~schema-map-with-gen)
                       (swap! instrumented-vars #(assoc % '~fn-sym ~fn-sym))
                       (set! ~fn-sym (m/-instrument ~schema-map-with-gen ~fn-sym))
                       '~fn-sym)]
@@ -94,8 +92,6 @@
   (let [ns     (symbol (namespace (:name var-map)))
         schema (:malli/schema meta)]
     (when schema
-      (println "collecting " simple-name)
-      (println "meta: : " (m/-unlift-keys meta "malli"))
       (m/-register-function-schema! ns simple-name schema (m/-unlift-keys meta "malli"))
       `(do (m/-register-function-schema! '~ns '~simple-name ~schema ~(m/-unlift-keys meta "malli"))
            '~(:name var-map)))))
