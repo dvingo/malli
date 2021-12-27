@@ -1,15 +1,19 @@
 2021-12-26
 [] Update all API equivalent cljs functions/macros to match the clojure implementation versions.
-[] Add tests
+[x] Add tests
   [x] Run existing tests (./bin/kaocha)
   [x] add malli.instrument.cljs tests
-  [] see if you can get thrown-with-msg? to work in cljs
-   [] check the type of the exception 
+  [x] see if you can get thrown-with-msg? to work in cljs
+   [x] check the type of the exception 
 
 There is a bug where if you start a clojurescript repl and then a clojure one the malli function schemas in the cljs side 
 break - they may be broken in clj too, need to verify it.
 I thought the two repls would be running in their own processes and not share data/memory but maybe that's false.
 The issue I think is the malli.core/-function-schemas* may be colliding between the two.
+_update_: I tried this and it seems to no longer happen!
+
+so, I'll leave the below note just in case the future needs it.
+
 
 I also want to test this in library code 
 [] update another project's deps.edn to point at local/root of this branch
