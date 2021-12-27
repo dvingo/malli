@@ -43,9 +43,10 @@
     `(filterv some? ~r)))
 
 (defmacro instrument!
-  "Instruments all functions in the function-schemas atom."
-  [{:keys [_scope _report _filters _gen] :as opts}]
-  (instrument* opts))
+  "Applies instrumentation for a filtered set of function Vars (e.g. `defn`s).
+   See [[malli.core/-instrument]] for possible options."
+  ([] (instrument* {}))
+  ([opts] (instrument* opts)))
 
 ;;
 ;; unstrument
@@ -82,7 +83,11 @@
             (m/function-schemas))]
     `(filterv some? ~r)))
 
-(defmacro unstrument! [opts] (unstrument* opts))
+(defmacro unstrument!
+  "Removes instrumentation from a filtered set of function Vars (e.g. `defn`s).
+   See [[malli.core/-instrument]] for possible options."
+  ([] (unstrument* {}))
+  ([opts] (unstrument* opts)))
 
 ;;
 ;; Collect schemas - register them into the known malli.core/-function-schemas* atom based on their metadata.
@@ -99,7 +104,15 @@
 (defn -sequential [x] (cond (set? x) x (sequential? x) x :else [x]))
 
 (defmacro collect!
-  "Adds all functions that have :malli/schema metadata to the function schemas atom."
+  "Reads all public Vars from a given namespace(s) and registers a function (var) schema if `:malli/schema`
+   metadata is present. The following metadata key can be used:
+
+   | key             | description |
+   | ----------------|-------------|
+   | `:malli/schema` | function schema
+   | `:malli/scope`  | optional set of scope definitions, defaults to `#{:input :output}`
+   | `:malli/report` | optional side-effecting function of `key data -> any` to report problems, defaults to `m/-fail!`
+   | `:malli/gen`    | optional value `true` or function of `schema -> schema -> value` to be invoked on the args to get the return value"
   ([] `(collect! ~{:ns (symbol (str *ns*))}))
   ([{:keys [ns]}]
    (reduce (fn [acc [var-name var-map]] (let [v (-collect! var-name var-map)] (cond-> acc v (conj v))))
@@ -135,5 +148,8 @@
             (m/function-schemas))]
     `(into {} ~r)))
 
-(defmacro check []
+(defmacro check
+  "Checks all registered function schemas using generative testing.
+   Returns nil or a map of symbol -> explanation in case of errors."
+  []
   (check*))
