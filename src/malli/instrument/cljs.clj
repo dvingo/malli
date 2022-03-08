@@ -1,7 +1,8 @@
 (ns malli.instrument.cljs
   (:require [cljs.analyzer.api :as ana-api]
             [malli.core :as m]
-            [malli.generator :as mg]))
+            [malli.generator :as mg]
+            [clojure.walk :as walk]))
 
 ;;
 ;; Collect schemas - register them into the known malli.core/-function-schemas[-cljs]* atom based on their metadata.
@@ -11,9 +12,13 @@
   (let [ns (symbol (namespace (:name var-map)))
         schema (:malli/schema meta)]
     (when schema
-      (m/-register-function-schema! ns simple-name schema (m/-unlift-keys meta "malli") :cljs identity)
-      `(do (m/-register-function-schema! '~ns '~simple-name ~schema ~(m/-unlift-keys meta "malli"))
-           '~(:name var-map)))))
+      (let [-qualify-sym (fn [form] (if (simple-symbol? form) (symbol (str ns) (str form)) form))
+            schema* (walk/postwalk -qualify-sym schema)
+            metadata (walk/postwalk -qualify-sym (m/-unlift-keys meta "malli"))]
+        (m/-register-function-schema! ns simple-name schema* metadata :cljs identity)
+        `(do
+           (m/-register-function-schema! '~ns '~simple-name ~schema* ~metadata)
+           '~(:name var-map))))))
 
 (defn -sequential [x] (cond (set? x) x (sequential? x) x :else [x]))
 

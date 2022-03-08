@@ -1,5 +1,6 @@
 (ns malli.instrument.cljs-test
   (:require [cljs.test :refer [deftest is testing]]
+            [malli.instrument.fn-schemas :refer [sum-nums]]
             [malli.core :as m]
             [malli.experimental :as mx]
             [malli.instrument.cljs :as mi]))
@@ -62,13 +63,14 @@
     (is (thrown-with-msg? js/Error #":malli.core/invalid-input" (power "2")))
     (is (thrown-with-msg? js/Error #":malli.core/invalid-output" (power 6)))))
 
-(mi/collect!)
+(mi/collect! {:ns ['malli.instrument.cljs-test 'malli.instrument.fn-schemas]})
 
 (deftest collect!-test
 
   (testing "with instrumentation"
-    (mi/instrument! {:filters [(mi/-filter-ns 'malli.instrument.cljs-test)]})
-
+    (mi/instrument! {:filters [(mi/-filter-ns 'malli.instrument.cljs-test 'malli.instrument.fn-schemas)]})
+    (is (= (sum-nums [2 3 4 5]) 14) "Function schemas in other namespaces are instrumented without error.")
+    (is (thrown-with-msg? js/Error #":malli.core/invalid-input" (sum-nums "2")))
     (is (thrown-with-msg? js/Error #":malli.core/invalid-input" (minus "2")))
     (is (thrown-with-msg? js/Error #":malli.core/invalid-output" (minus 6)))
 
@@ -76,7 +78,7 @@
     (is (thrown-with-msg? js/Error #":malli.core/invalid-output" (minus-small-int 10))))
 
   (testing "without instrumentation"
-    (mi/unstrument! {:filters [(mi/-filter-ns 'malli.instrument.cljs-test)]})
+    (mi/unstrument! {:filters [(mi/-filter-ns 'malli.instrument.cljs-test 'malli.instrument.fn-schemas)]})
 
     (is (= 1 (minus "2")))
     (is (= 5 (minus 6)))
