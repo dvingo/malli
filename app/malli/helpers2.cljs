@@ -4,10 +4,16 @@
     [malli.core :as m]
     [malli.helpers :as h :refer [int-schema]]))
 
-(mx/defn square-it :- h/int-schema
+(mx/defn square-it :-
+  h/int-schema
   [x :- int?]
-  (str x)
+  (* 3 x)
+  ;(str (* 2 x))
   ;(str (* x x))
+  )
+
+(comment
+  (square-it 5)
   )
 
 
@@ -20,6 +26,7 @@
 
 (def AB [:map [:a [:int {:min 0}]] [:b :int]])
 (def CD [:map [:c [:int {:min 0}]] [:d :int]])
+
 
 
 ;; schematized, nested keywords args

@@ -1,6 +1,8 @@
 (ns malli.instrument-app
+  {:dev/always true}
   (:require
     [malli.clj-kondo :as mari]
+    malli.app
     [malli.helpers2 :as h2]
     [malli.core :as m]
     [malli.dev.cljs :as dev]
@@ -10,16 +12,13 @@
     [malli.experimental :as mx]
     [malli.instrument.cljs :as mi]))
 
-(defn init []
-  (js/console.log "INIT!"))
+(comment
+  (m/function-schemas :cljs)
+  )
+
 
 (comment
   (meta #'h2/f3))
-
-
-(defn refresh {:dev/after-load true} []
-  ;(.log js/console "hot reload")
-  )
 
 (defn x+y
   {:malli/schema [:=> [:cat float? float?] :double]}
@@ -49,11 +48,12 @@
                   :report (pretty/reporter)}
     sum))
 
-(m/=> sum [:=> [:cat :int :int] :int])
+;(m/=> sum [:=> [:cat :int :int] :int])
 
 (comment
   (sum 1 2)
   (sum "1" 2))
+
 
 (set! sum
   (m/-instrument {:schema (m/schema [:=> [:cat :int :int] :int])
@@ -62,7 +62,7 @@
 
 (defn minus
   "a normal clojure function, no dependencies to malli"
-  {:malli/schema [:=> [:cat :int] [:int {:min 6}]]
+  {:malli/schema2 [:=> [:cat :int] [:int {:min 6}]]
    :malli/gen    true
    :malli/scope  #{:input :output}}
   [x]
@@ -70,8 +70,9 @@
 
 (defn plus-gen
   "a normal clojure function:malli.core/invalid-schema {:schema #object[malli.core.t_malli$core61329]}
+
 , no dependencies to malli"
-  {:malli/schema [:=> [:cat :int] [:int {:min 6}]]}
+  {:malli/schema2 [:=> [:cat :int] [:int {:min 6}]]}
   [x]
   (dec x))
 
@@ -84,13 +85,13 @@
   )
 
 (defn plus1 [a] (inc a))
-(m/=> plus1 [:=> [:cat :int] :int])
+;(m/=> plus1 [:=> [:cat :int] :int])
 
 (defn plus2
   {:validate? true}
   [a b]
   (+ a b))
-(m/=> plus2 [:=> [:cat :string :int] :int])
+;(m/=> plus2 [:=> [:cat :string :int] :int])
 
 ;; multi-arity function
 (defn plus-many
@@ -98,10 +99,10 @@
   ([a b & others]
    (apply + a b others)))
 
-(m/=> plus-many
-  [:function
-   [:=> [:cat :int] :int]
-   [:=> [:cat :int :int [:* :int]] :int]])
+;(m/=> plus-many
+;  [:function
+;   [:=> [:cat :int] :int]
+;   [:=> [:cat :int :int [:* :int]] :int]])
 
 (comment
   (plus-many 5)
@@ -156,40 +157,56 @@
 (defn minus-test [x] (dec x))
 
 (defn plus-it [x] (inc x))
-(m/=> plus-it [:=> [:cat :int] [:int {:max 6}]])
+;(m/=> plus-it [:=> [:cat :int] [:int {:max 6}]])
 
 (defn sum3 [a b] (+ a b))
-(m/=> sum3 [:=> [:cat :int :int] :int])
+;(m/=> sum3 [:=> [:cat :int :int] :int])
 
 (def small-int [:int {:max 6}])
 
 (def MyInt (m/-simple-schema {:type 'MyInt, :pred #(and (int? %) (< 100 %))}))
 
 (defn plus [x] (inc x))
-(m/=> plus [:=> [:cat :int] small-int])
+;(m/=> plus [:=> [:cat :int] small-int])
 
 (defn plusX [x] (inc x))
-(m/=> plusX [:=> [:cat :int] MyInt])
+;(m/=> plusX [:=> [:cat :int] MyInt])
 
 (defn try-it []
-
   (println "sq: " (pr-str (h2/square-it 5)))
   ;(plus "a")
   )
 
+
+(comment
+  (md/clear-function-schemas!)
+
+  )
+
 (defn ^:dev/after-load x []
   (println "AFTER LOAD - malli.dev.cljs/start!")
-  ;(md/start!)
+  (comment
+    (macroexpand
 
-  (mi/unstrument!)
+      '(md/start!)
+      )
+    )
+  (md/start!)
+
+
+  (println "AFTER LOAD 2")
+
+  ;(mi/unstrument!)
 
 
   ;; register all function schemas and instrument them based on the options
-  (md/collect-all!)
+  ;(md/collect-all!)
 
-  (mi/instrument! {:report (pretty/thrower)
-                   :filters
-                   [(mi/-filter-ns 'malli.helpers2 'malli.instrument-app)]})
+
+  ;(mi/instrument! {:report (pretty/thrower)
+  ;                 :filters
+  ;                 [(mi/-filter-ns 'malli.helpers2 'malli.instrument-app)]
+  ;                 })
 
 
   (println "f3 1: " (h2/f3 500))
@@ -216,3 +233,11 @@
   (mi/instrument! {:report  (pretty/reporter)
                    :filters [(mi/-filter-var #{#'plusX})]})
   (plusX 10))
+
+(defn init []
+
+  (js/console.log "INIT!")
+  (md/start!))
+
+(comment
+  (mi/unstrument!))

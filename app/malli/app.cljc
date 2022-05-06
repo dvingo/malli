@@ -4,6 +4,7 @@
 (ns malli.app
   (:require [malli.core :as m]))
 
+(.log js/console "malli.app loaded")
 (m/validate
   [:map [:maybe [:maybe :string]]]
   {:maybe "sheep"})

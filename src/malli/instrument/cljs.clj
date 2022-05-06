@@ -66,12 +66,11 @@
 (defn -emit-instrument-fn [env {:keys [gen filters report] :as instrument-opts}
                            {:keys [schema] :as schema-map} ns-sym fn-sym]
   ;; gen is a function
-  (let [schema-map (-> schema-map
-                       (select-keys [:gen :scope :report])
-                       ;; The schema passed in may contain cljs vars that have to be resolved at runtime in cljs.
-                       (assoc :schema `(m/function-schema ~schema))
-                     (cond-> report
-                       (assoc :report `(cljs.core/fn [type# data#] (~report type# (assoc data# :fn-name '~fn-sym))))))
+  (let [schema-map
+        (cond->
+          (select-keys schema-map [:gen :scope :report])
+          report
+          (assoc :report `(fn [type# data#] (~report type# (assoc data# :fn-name '~fn-sym)))))
         schema-map-with-gen
                    (as-> (merge (select-keys instrument-opts [:scope :report :gen]) schema-map) $
                      ;; use the passed in gen fn to generate a value
@@ -79,9 +78,21 @@
                        (assoc $ :gen gen)
                        (dissoc $ :gen)))
         replace-var-code (when (ana-api/resolve env fn-sym)
-                           `(do
+                           `(let [current-schema#
+                                  ;; for hot reloading scenarios use the most up to date registered function schema,
+                                              (or
+                                                (get-in (m/function-schemas :cljs) ['~ns-sym (symbol (name '~fn-sym)) :schema])
+                                                ~schema)
+                                  schema-map# (assoc ~schema-map-with-gen :schema ~schema)]
+
+                              ;(.log js/console "INSTR, ns-sym: " '~ns-sym)
+                              (.log js/console "INSTR, fn-sym: " '~fn-sym)
+                              (.log js/console "INSTR, curr sch: " (get-in (m/function-schemas :cljs) ['~ns-sym (symbol (name '~fn-sym)) :schema]) )
+                              (.log js/console "INSTR, passed in sch: " ~schema )
+                              (.log js/console "---------------------")
                               (swap! instrumented-vars #(assoc % '~fn-sym ~fn-sym))
-                              (set! ~fn-sym (m/-instrument ~schema-map-with-gen ~fn-sym))
+                              ;(set! ~fn-sym (m/-instrument ~schema-map-with-gen ~fn-sym))
+                              (set! ~fn-sym (m/-instrument schema-map# ~fn-sym))
                               (.log js/console "..instrumented" '~fn-sym)
                               '~fn-sym))]
     (if filters

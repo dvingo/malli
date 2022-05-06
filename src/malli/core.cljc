@@ -2385,6 +2385,7 @@
 ;;
 
 (defonce ^:private -function-schemas* (atom {}))
+(defn clear-function-schemas! [] (reset! -function-schemas* {}))
 (defn function-schemas ([] (function-schemas :clj)) ([key] (@-function-schemas* key)))
 
 (defn function-schema

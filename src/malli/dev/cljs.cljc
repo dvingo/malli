@@ -1,10 +1,12 @@
 (ns malli.dev.cljs
   #?(:cljs (:require-macros [malli.dev.cljs]))
   #?(:cljs (:require [malli.instrument.cljs]
+                     [malli.core :as m]
                      [malli.dev.pretty :as pretty]))
   #?(:clj (:require [malli.clj-kondo :as clj-kondo]
                     [malli.dev.pretty :as pretty]
-                    [malli.instrument.cljs :as mi])))
+                    [malli.instrument.cljs :as mi]
+                    [malli.core :as m])))
 
 #?(:clj (defmacro stop!
           "Stops instrumentation for all functions vars and removes clj-kondo type annotations."
@@ -13,10 +15,14 @@
              ~(mi/-unstrument &env nil)
              ~(do (clj-kondo/save! {}) nil))))
 
+#?(:clj (defmacro clear-function-schemas! []
+          (m/clear-function-schemas!)
+          `(m/clear-function-schemas!)))
+
 #?(:clj
    (defn start!* [env options]
      `(do
-        ~(mi/-unstrument env nil)
+        ;~(mi/-unstrument env nil)
 
         ;; register all function schemas and instrument them based on the options
         ~(mi/-collect-all-ns env)
