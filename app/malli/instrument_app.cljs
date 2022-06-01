@@ -146,11 +146,13 @@
   (minus "5")
   (m/function-schemas))
 
+
 (defn minus2
   "kukka"
   {:malli/schema [:=> [:cat :int] [:int {:min 6}]]
    :malli/scope  #{:input :output}}
   [x] (dec x))
+
 
 (defn ->minus [] minus2)
 (defn minus-test [x] (dec x))
@@ -178,14 +180,25 @@
   )
 
 (defn ^:dev/after-load x []
+  (println "mi state: " )
+  ;(mi/try-it)
+
   (println "AFTER LOAD - malli.dev.cljs/start!")
+
+
   ;(md/start!)
 
   (mi/unstrument!)
 
-
   ;; register all function schemas and instrument them based on the options
   (md/collect-all!)
+
+
+
+
+
+
+
 
   (mi/instrument! {:report (pretty/thrower)
                    :filters
@@ -195,12 +208,17 @@
   (println "f3 1: " (h2/f3 500))
 
 
+
+
+
   ;(println "f3: " (h2/f3 "500"))
 
   ;(println "f5 " (h2/f5 [:a 1, :b 2] :c 3, :d 4 ))
 
   (js/setTimeout try-it 200)
   )
+
+
 
 
 (comment
