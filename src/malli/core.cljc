@@ -2474,13 +2474,22 @@
              (fn REPLACED [& args]
                ;( "ARGS: " args " f: " f)
                (println "calling single args " f ", " args)
+               (println "-instrument type of args: " (clojure.core/type args))
+               (println "-instrument vec: args " (vec args))
                (let [args (vec args), arity (count args)]
+                 (println "2 -malli.core/instrument")
+
                  (when wrap-input
                    (when-not (<= min arity (or max miu/+max-size+))
                      (report ::invalid-arity {:arity arity, :arities #{{:min min :max max}}, :args args, :input input, :schema schema}))
+
                    (when-not (validate-input args)
                      (report ::invalid-input {:input input, :args args, :schema schema})))
+
+                 (println "3 -malli.core/instrument")
+
                  (let [value (apply f args)]
+                   (println "4 -malli.core/instrument")
                    (when wrap-output
                      (when-not (validate-output value)
                        (report ::invalid-output {:output output, :value value, :args args, :schema schema})))

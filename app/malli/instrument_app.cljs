@@ -11,29 +11,30 @@
     [malli.instrument.cljs :as mi]))
 
 (defn my-function-bad
-  {:malli/schema [:=> [:cat :int [:* :any]] :any]}
+  {:malli/schema [:=> [:cat :int [:* :int]] :any]}
   [x & args]
   (prn "X is " x " args are " args)
   123)
 
 (defn pure-vary
-  {:malli/schema [:=> [:cat [:* :any]] some?]}
+  {:malli/schema [:=> [:cat [:* :string]] some?]}
   [& x] x)
 
 (defn multi-and-vary
   {:malli/schema [:function
                   [:=> [:cat :int] :int]
                   [:=> [:cat :string :string] :string]
-                  [:=> [:cat :int :string [:* int?]] :vector]]}
+                  [:=> [:cat :int :string [:* int?]] [:sequential :int]]]}
   ([x] x)
   ([x y] y)
   ([x y & z] z))
+
 
 (defn multi-and-vary2
   {:malli/schema [:function
                   [:=> [:cat :int] :int]
                   [:=> [:cat :string :string :string :string] :string]
-                  [:=> [:cat :int :string [:* int?]] :vector]]}
+                  [:=> [:cat :int :string [:* int?]] [:sequential :int]]]}
   ([x] x)
   ([x y z a] y)
   ([x y & z] z))
@@ -143,7 +144,6 @@
 (m/=> plus-many2
   [:function
    [:=> [:cat :int] :int]
-
    [:=> [:cat :int :int :int] :int]])
 
 (comment
@@ -215,40 +215,44 @@
 (defn plusX [x] (inc x))
 (m/=> plusX [:=> [:cat :int] MyInt])
 
+(defn multi-fnXX [x & args] (prn "MULTI X is " x " args are " args) 123)
+
 (defn try-it []
 
   (println "in try it")
-  ;(my-function-bad 1)
-  ;(println "minus2")
-
-  ; (plus-many 10)
-  (plus-many2 10)
+  ;(my-function-bad 1 "2")
 
 
+  (println "TRY IT")
+
+  (.log js/console "HELLO?")
+
+  ;(my-function-bad 1 5)
+  (my-function-bad 1)
+
+
+  ;(pure-vary "hi" "abc")
+  (println "minus2")
+
+
+  ;(plus-many 10 10)
+  ;(multi-fnXX 1 3)
+  ;(plus-many2 10)
   ;(minus2 1 )
   )
 
 (defn ^:dev/after-load x []
   (println "AFTER LOAD - malli.dev.cljs/start!")
+  (println "AFTER LAOAD")
+
   (md/start!)
-  (js/setTimeout try-it 100)
 
-  ;(mi/unstrument!)
-  ;; register all function schemas and instrument them based on the options
-  ;(md/collect-all!)
-  #_(mi/instrument! {:report (pretty/thrower)
-                     :filters
-                     [(mi/-filter-ns 'malli.helpers2 'malli.instrument-app)]})
-
-  ;(println "f3: " (h2/f3 "500"))
-
-  ;(println "f5 " (h2/f5 [:a 1, :b 2] :c 3, :d 4 ))
-
-  )
+  (js/setTimeout try-it 100))
 
 (comment
   ((->minus) 5)
   (mi/check)
+
   (macroexpand '(mi/check))
   (mi/instrument! {:report (pretty/reporter) :filters [(mi/-filter-var #{#'sum})]})
   (m/type (m/schema [:=> [:cat :int] small-int]))
