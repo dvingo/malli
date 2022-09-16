@@ -87,7 +87,6 @@
     - do not set! symbol itself, that fn just dispatches to the arity fns
     - set! the arity fns and also set! the variadic fn
     ex: :top-fn {:variadic? true, :fixed-arity 2, :max-fixed-arity 2, :method-params [[x] [x y]], :arglists ([x] [x y] [x y & z]), :arglists-meta (nil nil nil)}
-
 "
 (def default-schema-keys (set (filter keyword? (keys (m/default-schemas)))))
 
@@ -97,54 +96,42 @@
   (walk/postwalk (fn [form] (if (or (coll? form) (contains? default-schema-keys form))
                               form :any))
     schema))
-(comment
-  [(mock-cljs-schema [:=> [:cat :string 'my-schema] :string]) [:=> [:cat :string 'my-schema] :string]]
-  )
 
-(defn emit-multi-arity-inst-code [fn-sym schema-map schema]
+
+(defn emit-variadic-instrumented-fn [fn-sym schema-map max-fixed-args]
+  `(set! (.-cljs$core$IFn$_invoke$arity$variadic ~fn-sym)
+     (let [orig-fn#      (.-cljs$core$IFn$_invoke$arity$variadic ~fn-sym)
+           instrumented# (meta-fn
+                           (m/-instrument (assoc ~schema-map :scope #{:input :output})
+                             (fn [& args#]
+                               (let [[fixed-args# rest-args#] (split-at ~max-fixed-args (vec args#))]
+                                 ;; we have to pass the arguments in this shape to match what the cljs compiler does
+                                 (apply orig-fn# (into (vec fixed-args#) [(not-empty rest-args#)])))))
+                           {:instrumented-symbol '~fn-sym})]
+       (fn ~(symbol (str (name fn-sym) "-variadic")) [& args#]
+         (apply instrumented# (apply list* args#))))))
+
+(defn emit-multi-arity-instrumentation-code
+  [fn-sym schema-map schema max-fixed-args]
   (when-not (= (first schema) :function) (throw (IllegalArgumentException. (str "Multi-arity function " fn-sym " must have :function schema. You provided: "
                                                                              (pr-str schema)))))
+  ;; Here we pair up each function schema with a mocked version that can safely be parsed in malli Clojure during compilation
+  ;; this is so we can use the helper functions to get the arities for each schema.
   (let [schema-tuples (map (fn [s] [(mock-cljs-schema s) s]) (rest schema))
         arity->info   (into {} (map (fn [[mock-schema schema]]
                                       (let [arity (:arity (m/-function-info (m/schema mock-schema)))]
-
-                                        [(if (= arity :varargs) "variadic" arity) schema])) schema-tuples))]
-    ;arity->info
+                                        [arity schema]))
+                                 schema-tuples))]
     `(do
        ~@(map (fn [[arity fn-schema]]
-                ;; todo - need to use the same technique as below for pure variadic functions
-                (let [arity-fn-sym `(~(symbol (str ".-cljs$core$IFn$_invoke$arity$" arity)) ~fn-sym)]
-                  (if (= arity "variadic")
-                    `(set! ~arity-fn-sym
-                       (let [instrumented# (m/-instrument ~(assoc schema-map :schema fn-schema) ~arity-fn-sym)]
-                         (fn ~(symbol (str (name fn-sym) "-variadic")) [& args#]
-                           (.log js/console "YYY in multi-arity variadic " args#)
-                           (.log js/console "YYY args#: " args#)
-                           ;(.log js/console "into [] args#: " (into [] cat args#))
-                           ;args#
-                           (.log js/console "calling instrumented fn ")
-                           (apply instrumented# args#)
-                           )))
-                    `(set! ~arity-fn-sym (m/-instrument ~(assoc schema-map :schema fn-schema) ~arity-fn-sym)))))
+                (if (= arity :varargs)
+                  (emit-variadic-instrumented-fn fn-sym schema-map max-fixed-args)
+                  (let [arity-fn-sym `(~(symbol (str ".-cljs$core$IFn$_invoke$arity$" arity)) ~fn-sym)]
+                    `(set! ~arity-fn-sym (meta-fn (m/-instrument ~(assoc schema-map :schema fn-schema) ~arity-fn-sym)
+                                           {:instrumented-symbol '~fn-sym})))))
            arity->info))))
 
-(comment
-  (emit-multi-arity-inst-code 'hell nil nil [:function [:=> [:cat [:* :int]] :int]])
-
-  (emit-multi-arity-inst-code 'hell nil nil
-    [:function
-     [:=> [:cat [:and :int [:> 500]]] :int]
-     ;[:=> [:cat :string 'my-schema] :string]
-     [:=> [:cat :int :string [:* :int]] [:sequential :int]]])
-  )
-
 (defn emit-replace-var-code [fn-sym fn-var-meta schema-map schema]
-  (println "------------------")
-  (println "fn var: " fn-sym (pr-str fn-var-meta))
-  (println "schema: " schema)
-  ;; todo so here you have to branch.
-  ;; for single arity functions it is fine to keep this code.
-  ;; for multi-arity and variadic this will not work
   (let [variadic?      (-> fn-var-meta :top-fn :variadic?)
         max-fixed-args (-> fn-var-meta :top-fn :max-fixed-arity)
         ; parse arglists, it comes in with this shape: (quote ([a b]))
@@ -152,37 +139,26 @@
         single-arity?  (= (count arglists) 1)]
     `(do
        (swap! instrumented-vars #(assoc % '~fn-sym ~fn-sym))
-       (.log js/console "..instrumented" '~fn-sym)
        ~(cond
-          ;; these first 2 should work
           (and (not variadic?) single-arity?)
-          `(do
-             (set! ~fn-sym (m/-instrument ~schema-map ~fn-sym))
-             '~fn-sym)
+          `(set! ~fn-sym (meta-fn (m/-instrument ~schema-map ~fn-sym) {:instrumented-symbol '~fn-sym}))
 
           (and variadic? single-arity?)
-          (do
-            `(do
-               (set! (.-cljs$core$IFn$_invoke$arity$variadic ~fn-sym)
-                 (let [orig-fn#      (.-cljs$core$IFn$_invoke$arity$variadic ~fn-sym)
-                       instrumented# (m/-instrument (assoc ~schema-map :scope #{:input :output}) (fn [& args#]
-                                                                                                   (let [[fixed-args# rest-args#] (split-at ~max-fixed-args (vec args#))]
-                                                                                                     ;(.log js/console "IN INSTRUMENTED FUNCTION " args#)
-                                                                                                     ;(.log js/console "ORIG fn: " orig-fn#)
-                                                                                                     ;(.log js/console "FIXED ARGS " fixed-args#)
-                                                                                                     ;(.log js/console "REST ARGS " rest-args#)
-                                                                                                     (apply orig-fn# (into (vec fixed-args#) [(not-empty rest-args#)])))))]
-                   (fn ~(symbol (str (name fn-sym) "-variadic"))
-                     [& args#]
-                     (let [args2# (apply list* args#)]
-                       ;(.log js/console "in single arity variadic")
-                       ;(.log js/console "ALL ARGS: " args2#)
-                       (apply instrumented# args2#)))))
-               '~fn-sym))
+          `(set! (.-cljs$core$IFn$_invoke$arity$variadic ~fn-sym)
+             (let [orig-fn#      (.-cljs$core$IFn$_invoke$arity$variadic ~fn-sym)
+                   instrumented# (meta-fn (m/-instrument (assoc ~schema-map :scope #{:input :output})
+                                            (fn [& args#]
+                                              (let [[fixed-args# rest-args#] (split-at ~max-fixed-args (vec args#))]
+                                                (apply orig-fn# (into (vec fixed-args#) [(not-empty rest-args#)])))))
+                                   {:instrumented-symbol '~fn-sym})]
+               (fn ~(symbol (str (name fn-sym) "-variadic")) [& args#]
+                 (apply instrumented# (apply list* args#)))))
 
           ;; multi-arity non-variadic
           :else
-          `(do ~(emit-multi-arity-inst-code fn-sym schema-map schema) '~fn-sym)))))
+          (emit-multi-arity-instrumentation-code fn-sym schema-map schema max-fixed-args))
+       (.log js/console "..instrumented" '~fn-sym)
+       '~fn-sym)))
 
 (defn -emit-instrument-fn [env {:keys [gen filters report] :as instrument-opts}
                            {:keys [schema] :as schema-map} ns-sym fn-sym]
@@ -202,13 +178,10 @@
 
         replace-var-code (when-let [fn-var (ana-api/resolve env fn-sym)]
                            (emit-replace-var-code fn-sym (:meta fn-var) schema-map-with-gen schema))]
-    (println "----------------------------------------------------------------------------------------")
-    (println "REPLACE VAR CODE")
-    (clojure.pprint/pprint replace-var-code)
-    (if filters
-      `(when (some #(% '~ns-sym (var ~fn-sym) ~schema-map) ~filters)
-         ~replace-var-code)
-      replace-var-code)))
+  (if filters
+    `(when (some #(% '~ns-sym (var ~fn-sym) ~schema-map) ~filters)
+       ~replace-var-code)
+    replace-var-code)))
 
 (defn -instrument [env {:keys [data] :or {data (m/function-schemas :cljs)} :as opts}]
   (let [r
@@ -300,71 +273,3 @@
    See [[malli.core/-instrument]] for possible options."
   ([] (-unstrument &env {}))
   ([opts] (-unstrument &env opts)))
-
-(defn multi-and-vary2
-  ([x] x)
-  ([x y] y)
-  ([x y & z] z))
-
-;; so i have a strategy. now the trouble is lining up the malli schemas for each function with the arity.
-;; this is parsing essentially.
-
-;; can use the malli regex schemas to parse
-
-"
-The idea is to use the existing -instrument code for verifying the function schemas by removing any cljs
-symbols in order to make valid Clojure malli schemas during compilation
-
-- need to check if malli validates your arities match the function's
-- so they don't verify for clojure
-- but for cljs we need to match up each :=> with its arity so that we can set! that arity with the instrumented version
-"
-(comment
-  (
-   (m/-instrument {:schema
-                   [:function
-                    [:=> [:cat :int] :int]
-                    ;[:=> [:cat :string :string] :string]
-                    [:=> [:cat :int :string [:* :int]] [:sequential :int]]]
-                   }
-     multi-and-vary2)
-   5 "a" 5)
-  )
-
-;; okay this is working
-;; now need to take :function schema in cljs with invalid clojure schema symbols and update it to work for clojure
-
-(def seq-schema-keys (set (keys (m/sequence-schemas))))
-
-
-(comment
-  (mock-cljs-schema
-    [:function
-     [:=> [:cat :int] :int]
-     [:=> [:cat :string 'my-schema] :string]
-     [:=> [:cat :int :string [:* :int]] [:sequential :int]]]))
-
-(comment
-  (let [schema      (m/schema
-                      [:function
-                       [:=> [:cat :int] :int]
-                       [:=> [:cat :string :string] :string]
-                       [:=> [:cat :int :string [:* :int]] [:sequential :int]]])
-        options     {}
-        f           (fn [])
-        props       {}
-        arity->info (->> (m/children schema)
-                      (map (fn [s] (assoc (m/-function-info s) :f (m/-instrument (assoc props :schema s) f options)))))
-        ]
-    arity->info
-    )
-  [fn-sym fn-var schema-map schema]
-  )
-
-(comment
-  (m/type [:=> [:cat :int] 'abcd])
-  (m/-regex-min-max [:=> [:cat :int] 'abcd])
-  (m/-regex-min-max [:cat :string :string :string :string])
-  (m/-regex-min-max [:* int?])
-  (m/-instrument
-    ))

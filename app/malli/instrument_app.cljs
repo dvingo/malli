@@ -224,9 +224,9 @@
 (defn multi-arity-variadic-fn
   {:malli/schema
    [:function
-    [:=> [:cat] [:int]]
+    ;[:=> [:cat] [:int]]
     [:=> [:cat :int] [:int]]
-    [:=> [:cat :string :string] [:string]]
+    ;[:=> [:cat :string :string] [:string]]
     [:=> [:cat :string :string :string [:* :string]] [:string]]]}
   ([] 500)
   ([a] (inc a))
@@ -248,6 +248,7 @@
 
 
 
+
    ;(variadic-fn1 1 "2")
    ;(variadic-fn2 1 "2")
    ;(= 3 (variadic-fn1 1 2))
@@ -266,8 +267,8 @@
 
    ;(multi-arity-variadic-fn 1 2)
 
-  (println
-    (multi-arity-variadic-fn 1 2 :c))
+  ;(println (multi-arity-variadic-fn "1" "2" "3" :c))
+  (println (multi-arity-variadic-fn 1))
 
   (.log js/console "HELLO?")
 
