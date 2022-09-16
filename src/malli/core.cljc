@@ -2471,7 +2471,9 @@
                  [validate-input validate-output] (-vmap validator [input output])
                  [wrap-input wrap-output] (-vmap (partial contains? scope) [:input :output])
                  f (or (if gen (gen schema) f) (-fail! ::missing-function {:props props}))]
-             (fn [& args]
+             (fn REPLACED [& args]
+               ;( "ARGS: " args " f: " f)
+               (println "calling single args " f ", " args)
                (let [args (vec args), arity (count args)]
                  (when wrap-input
                    (when-not (<= min arity (or max miu/+max-size+))
@@ -2490,7 +2492,8 @@
                        varargs-info (arity->info :varargs)]
                    (if (= 1 (count arities))
                      (-> arity->info first val :f)
-                     (fn [& args]
+                     (fn REPLACED-V [& args]
+                       (println "Calling variadic args: " args)
                        (let [arity (count args)
                              {:keys [input] :as info} (arity->info arity)
                              report-arity #(report ::invalid-arity {:arity arity, :arities arities, :args args, :input input, :schema schema})]

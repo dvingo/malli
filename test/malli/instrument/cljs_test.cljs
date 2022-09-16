@@ -10,11 +10,19 @@
 
 (def small-int [:int {:max 6}])
 
+(defn multi-arity-fn
+  {:malli/schema
+   [:function
+    [:=> [:cat] [:int]]]}
+  ([] 500))
+
 (defn minus
   "kukka"
   {:malli/schema [:=> [:cat :int] [:int {:min 6}]]
    :malli/scope  #{:input :output}}
   [x] (dec x))
+
+
 
 (defn minus-small-int
   "kukka"

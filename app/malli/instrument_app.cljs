@@ -10,6 +10,45 @@
     [malli.experimental :as mx]
     [malli.instrument.cljs :as mi]))
 
+(defn my-function-bad
+  {:malli/schema [:=> [:cat :int [:* :any]] :any]}
+  [x & args]
+  (prn "X is " x " args are " args)
+  123)
+
+(defn pure-vary
+  {:malli/schema [:=> [:cat [:* :any]] some?]}
+  [& x] x)
+
+(defn multi-and-vary
+  {:malli/schema [:function
+                  [:=> [:cat :int] :int]
+                  [:=> [:cat :string :string] :string]
+                  [:=> [:cat :int :string [:* int?]] :vector]]}
+  ([x] x)
+  ([x y] y)
+  ([x y & z] z))
+
+(defn multi-and-vary2
+  {:malli/schema [:function
+                  [:=> [:cat :int] :int]
+                  [:=> [:cat :string :string :string :string] :string]
+                  [:=> [:cat :int :string [:* int?]] :vector]]}
+  ([x] x)
+  ([x y z a] y)
+  ([x y & z] z))
+
+(defn func2
+  [x y & args]
+  (println "in func2"))
+
+(defn solo-arity [x] (println "x"))
+
+(defn two-arity
+  ([x] (println "just x"))
+  ([x y] (println "x and y"))
+  )
+
 (defn init []
   (js/console.log "INIT!"))
 
@@ -19,6 +58,7 @@
 (defn refresh {:dev/after-load true} []
   ;(.log js/console "hot reload")
   )
+
 
 (defn x+y
   {:malli/schema [:=> [:cat float? float?] :double]}
@@ -54,6 +94,11 @@
   [x]
   (dec x))
 
+(defn works?
+  ([x] x)
+  ([x & y] y)
+  ([x y & z] z))
+
 (defn plus-gen
   {:malli/schema [:=> [:cat :int] [:int {:min 6}]]}
   [x]
@@ -70,11 +115,13 @@
 (defn plus1 [a] (inc a))
 (m/=> plus1 [:=> [:cat :int] :int])
 
+
 (defn plus2
   {:validate? true}
   [a b]
   (+ a b))
 (m/=> plus2 [:=> [:cat :string :int] :int])
+
 
 ;; multi-arity function
 (defn plus-many
@@ -86,6 +133,18 @@
   [:function
    [:=> [:cat :int] :int]
    [:=> [:cat :int :int [:* :int]] :int]])
+
+
+(defn plus-many2
+  ([a] (inc a))
+  ([a b c]
+   (apply + [a b c])))
+
+(m/=> plus-many2
+  [:function
+   [:=> [:cat :int] :int]
+
+   [:=> [:cat :int :int :int] :int]])
 
 (comment
   (plus-many 5)
@@ -100,7 +159,8 @@
     {:schema [:function
               [:=> [:cat :int] [:int {:max 6}]]
               [:=> [:cat :int :int] [:int {:max 6}]]]
-     :gen mg/generate}))
+     :gen    mg/generate}))
+
 
 (comment
   (mi/unstrument! nil)
@@ -157,8 +217,15 @@
 
 (defn try-it []
 
-  (println "minus2")
-  (minus2 1 )
+  (println "in try it")
+  ;(my-function-bad 1)
+  ;(println "minus2")
+
+  ; (plus-many 10)
+  (plus-many2 10)
+
+
+  ;(minus2 1 )
   )
 
 (defn ^:dev/after-load x []
@@ -170,8 +237,8 @@
   ;; register all function schemas and instrument them based on the options
   ;(md/collect-all!)
   #_(mi/instrument! {:report (pretty/thrower)
-                   :filters
-                   [(mi/-filter-ns 'malli.helpers2 'malli.instrument-app)]})
+                     :filters
+                     [(mi/-filter-ns 'malli.helpers2 'malli.instrument-app)]})
 
   ;(println "f3: " (h2/f3 "500"))
 
