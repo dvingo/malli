@@ -2471,14 +2471,8 @@
                  [validate-input validate-output] (-vmap validator [input output])
                  [wrap-input wrap-output] (-vmap (partial contains? scope) [:input :output])
                  f (or (if gen (gen schema) f) (-fail! ::missing-function {:props props}))]
-             (fn REPLACED [& args]
-               ;( "ARGS: " args " f: " f)
-               (println "calling single args " f ", " args)
-               (println "-instrument type of args: " (clojure.core/type args))
-               (println "-instrument vec: args " (vec args))
+             (fn [& args]
                (let [args (vec args), arity (count args)]
-                 (println "2 -malli.core/instrument")
-
                  (when wrap-input
                    (when-not (<= min arity (or max miu/+max-size+))
                      (report ::invalid-arity {:arity arity, :arities #{{:min min :max max}}, :args args, :input input, :schema schema}))
@@ -2486,10 +2480,7 @@
                    (when-not (validate-input args)
                      (report ::invalid-input {:input input, :args args, :schema schema})))
 
-                 (println "3 -malli.core/instrument")
-
                  (let [value (apply f args)]
-                   (println "4 -malli.core/instrument")
                    (when wrap-output
                      (when-not (validate-output value)
                        (report ::invalid-output {:output output, :value value, :args args, :schema schema})))
@@ -2501,8 +2492,7 @@
                        varargs-info (arity->info :varargs)]
                    (if (= 1 (count arities))
                      (-> arity->info first val :f)
-                     (fn REPLACED-V [& args]
-                       (println "Calling variadic args: " args)
+                     (fn [& args]
                        (let [arity (count args)
                              {:keys [input] :as info} (arity->info arity)
                              report-arity #(report ::invalid-arity {:arity arity, :arities arities, :args args, :input input, :schema schema})]

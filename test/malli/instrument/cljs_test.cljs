@@ -13,16 +13,38 @@
 (defn multi-arity-fn
   {:malli/schema
    [:function
-    [:=> [:cat] [:int]]]}
-  ([] 500))
+    [:=> [:cat] [:int]]
+    [:=> [:cat :int] [:int]]
+    [:=> [:cat :string :string] [:string]]]}
+  ([] 500)
+  ([a] (inc a))
+  ([a b] (str a b)))
+
+(defn multi-arity-variadic-fn
+  {:malli/schema
+   [:function
+    [:=> [:cat] [:int]]
+    [:=> [:cat :int] [:int]]
+    [:=> [:cat :string :string] [:string]]
+    [:=> [:cat :string :string [:* :string]] [:string]]]}
+  ([] 500)
+  ([a] (inc a))
+  ([a b] (str a b))
+  ([a b c & more] (str a b c more)))
+
+(defn variadic-fn1
+  {:malli/schema [:=> [:cat [:* :int]] [:int]]}
+  [& vs] (apply + vs))
+
+(defn variadic-fn2
+  {:malli/schema [:=> [:cat :int [:* :int]] [:int]]}
+  [a & vs] (apply + a vs))
 
 (defn minus
   "kukka"
   {:malli/schema [:=> [:cat :int] [:int {:min 6}]]
    :malli/scope  #{:input :output}}
   [x] (dec x))
-
-
 
 (defn minus-small-int
   "kukka"
@@ -126,6 +148,25 @@
 
   (testing "with instrumentation"
     (mi/instrument! {:filters [(mi/-filter-ns 'malli.instrument.cljs-test 'malli.instrument.fn-schemas)]})
+
+    (is (thrown-with-msg? js/Error #":malli.core/invalid-input" (variadic-fn1 1 "2")))
+    (is (thrown-with-msg? js/Error #":malli.core/invalid-input" (variadic-fn2 1 "2")))
+    (is (= 3 (variadic-fn1 1 2)))
+    (is (= 3 (variadic-fn2 1 2)))
+    (is (= 500 (multi-arity-fn)))
+    (is (= 2 (multi-arity-fn 1)))
+    (is (= "ab" (multi-arity-fn "a" "b")))
+    (is (thrown-with-msg? js/Error #":malli.core/invalid-input" (multi-arity-fn "a")))
+    (is (thrown-with-msg? js/Error #":malli.core/invalid-input" (multi-arity-fn 1 2)))
+
+    (is (= 500 (multi-arity-variadic-fn)))
+    (is (= 2 (multi-arity-variadic-fn 1)))
+    (is (= "ab" (multi-arity-variadic-fn "a" "b")))
+    (is (= "ab(\"c\")" (multi-arity-variadic-fn "a" "b" "c")))
+    (is (thrown-with-msg? js/Error #":malli.core/invalid-input" (multi-arity-variadic-fn "a")))
+    (is (thrown-with-msg? js/Error #":malli.core/invalid-input" (multi-arity-variadic-fn 1 2)))
+    (is (thrown-with-msg? js/Error #":malli.core/invalid-input" (multi-arity-variadic-fn 1 2 :c)))
+
     (is (thrown-with-msg? js/Error #":malli.core/invalid-input" (str-join [1 "2"])))
     (is (thrown-with-msg? js/Error #":malli.core/invalid-input" (str-join2 [1 "2"])))
     (is (thrown-with-msg? js/Error #":malli.core/invalid-input" (str-join3 [1 "2"])))

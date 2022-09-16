@@ -1,7 +1,6 @@
 (ns malli.instrument.cljs
   (:require [cljs.analyzer.api :as ana-api]
             [clojure.walk :as walk]
-            [sc.api]
             [malli.core :as m]))
 
 ;;
@@ -66,105 +65,6 @@
 ;; instrument
 ;;
 
-;;;;;;
-;;;;;;;
-;;;;;;;;;;;;;
-
-
-;; 2 arity function:
-;fn var:  malli.instrument-app/plus-many2
-'{:file     'malli/instrument_app.cljs, :line 110, :column 7, :end-line 110, :end-column 17,
-  :arglists (quote ([a] [a b c])),
-  :top-fn   {:variadic?     false, :fixed-arity 3, :max-fixed-arity 3,
-             :method-params '[[a] [a b c]],
-             :arglists      '([a] [a b c]), :arglists-meta (nil nil)}}
-
-'malli.instrument-app/plus-many2
-;(defn plus-many2
-;  ([a] (inc a))
-;  ([a b c]
-;   (apply + [a b c])))
-'{:file     malli/instrument_app.cljs,
-  :line     110, :column 7, :end-line 110, :end-column 17,
-  :arglists (quote ([a] [a b c])),
-  :top-fn   '{:variadic? false, :fixed-arity 3, :max-fixed-arity 3, :method-params [[a] [a b c]], :arglists ([a] [a b c]), :arglists-meta (nil nil)}}
-
-;; variadic + fixed arity
-;(defn my-function-bad
-;  {:malli/schema [:=> [:cat :int [:* :any]] :any]}
-;  [x & args]
-;  (prn "X is " x " args are " args)
-;  123)
-'malli.instrument-app/my-function-bad
-'{:file         "malli/instrument_app.cljs",
-  :arglists     (quote ([x & args])),
-  :malli/schema [:=> [:cat :int [:* :any]] :any],
-  :top-fn       {:variadic?     true,
-                 :fixed-arity   1, :max-fixed-arity 1,
-                 :method-params [(x args)], :arglists ([x & args]), :arglists-meta (nil)}}
-
-'malli.instrument-app/minus
-'{:file         "malli/instrument_app.cljs", :end-column 12, :column 7, :line 85, :end-line 85,
-  :malli/scope  #{:output :input},
-  :malli/schema [:=> [:cat :int] [:int {:min 6}]],
-  :arglists     (quote ([x])), :malli/gen true, :doc "a normal clojure function, no dependencies to malli"}
-;[:=> [:cat :int] [:int {:min 6}]]
-
-(comment
-  (m/function-schemas :cljs)
-  (let [s '[:function [:=> [:cat :int] :int] [:=> [:cat :string :string :string :string] :string] [:=> [:cat :int :string [:* int?]] :vector]]]
-    (first s)
-
-    (rest s)
-    )
-  )
-;fn var: malli.instrument-app/multi-and-vary
-;(defn multi-and-vary
-;  {:malli/schema [:function
-;                  [:=> [:cat :int] :int]
-;                  [:=> [:cat :string :string] :string]
-;                  [:=> [:cat :int :string [:* int?]] :vector]]}
-;  ([x] x)
-;  ([x y] y)
-;  ([x y & z] z))
-'{:file         "malli/instrument_app.cljs", :line 19, :column 7, :end-line 19, :end-column 21, :arglists (quote ([x] [x y] [x y & z])),
-  :malli/schema [:function [:=> [:cat :int] :int] [:=> [:cat :string :string] :string] [:=> [:cat :int :string [:* :int]] :vector]],
-  :top-fn       {:variadic? true, :fixed-arity 2, :max-fixed-arity 2, :method-params [[x] [x y]], :arglists ([x] [x y] [x y & z]), :arglists-meta (nil nil nil)}}
-'[:function [:=> [:cat :int] :int] [:=> [:cat :string :string] :string] [:=> [:cat :int :string [:* int?]] :vector]]
-
-;(defn multi-and-vary2
-;  {:malli/schema [:function
-;                  [:=> [:cat :int] :int]
-;                  [:=> [:cat :string :string :string :string] :string]
-;                  [:=> [:cat :int :string [:* int?]] :vector]]}
-;  ([x] x)
-;  ([x y z a] y)
-;  ([x y & z] z))
-;malli.instrument-app/multi-and-vary2
-'{:file         "malli/instrument_app.cljs", :line 28, :column 7, :end-line 28, :end-column 22, :arglists (quote ([x] [x y z a] [x y & z])),
-  :malli/schema [:function [:=> [:cat :int] :int] [:=> [:cat :string :string :string :string] :string] [:=> [:cat :int :string [:* int?]] :vector]],
-  :top-fn       {:variadic? true, :fixed-arity 4, :max-fixed-arity 4, :method-params [[x] [x y z a]],
-                 :arglists  ([x] [x y z a] [x y & z]), :arglists-meta (nil nil nil)}}
-
-;; copy the loop code from here
-;https://github.com/clojure/clojurescript/blob/a4673b880756531ac5690f7b4721ad76c0810327/src/main/cljs/cljs/spec/test/alpha.cljs#L85
-;https://github.com/clojure/clojurescript/blob/a4673b880756531ac5690f7b4721ad76c0810327/src/main/cljs/cljs/spec/test/alpha.cljc#L312
-
-'malli.instrument-app/pure-vary
-'{:file         "malli/instrument_app.cljs", :line 19, :column 7, :end-line 19, :end-column 16,
-  :arglists     (quote ([& x])),
-  :malli/schema [:=> [:cat [:* :any]] some?],
-  :top-fn       {:variadic? true, :fixed-arity 0, :max-fixed-arity 0, :method-params [(x)], :arglists ([& x]), :arglists-meta (nil)}}
-[:=> [:cat [:* :any]] some?]
-
-(defn pure-vary
-  [& x] (first x))
-(comment
-  ((m/-instrument {:schema [:=> [:cat [:* :any]] some?]} pure-vary) nil)
-  (m/=> pure-vary [:=> [:cat [:* :any]] some?])
-  )
-
-
 "
  - single fixed arity
     - var metadata has no :top-fn key
@@ -212,10 +112,11 @@
     ;arity->info
     `(do
        ~@(map (fn [[arity fn-schema]]
+                ;; todo - need to use the same technique as below for pure variadic functions
                 (let [arity-fn-sym `(~(symbol (str ".-cljs$core$IFn$_invoke$arity$" arity)) ~fn-sym)]
                   (if (= arity "variadic")
-                    `(set! (.-cljs$core$IFn$_invoke$arity$variadic ~arity-fn-sym)
-                       (let [instrumented# (m/-instrument ~schema-map ~arity-fn-sym)]
+                    `(set! ~arity-fn-sym
+                       (let [instrumented# (m/-instrument ~(assoc schema-map :schema fn-schema) ~arity-fn-sym)]
                          (fn ~(symbol (str (name fn-sym) "-variadic")) [& args#]
                            (.log js/console "YYY in multi-arity variadic " args#)
                            (.log js/console "YYY args#: " args#)
@@ -248,154 +149,40 @@
         max-fixed-args (-> fn-var-meta :top-fn :max-fixed-arity)
         ; parse arglists, it comes in with this shape: (quote ([a b]))
         [_ arglists] (:arglists fn-var-meta)
-        _              (println "arglists" (pr-str arglists))
         single-arity?  (= (count arglists) 1)]
-    (println "(:arglists fn-var-meta) " (pr-str arglists) " count: " (count arglists))
-    (println "variadic? " (pr-str variadic?))
-    (println "single-arity? " (pr-str single-arity?))
     `(do
        (swap! instrumented-vars #(assoc % '~fn-sym ~fn-sym))
        (.log js/console "..instrumented" '~fn-sym)
        ~(cond
           ;; these first 2 should work
           (and (not variadic?) single-arity?)
-          (do
-            (println "(not variadic?) single-arity?")
-            `(do
-               (set! ~fn-sym (m/-instrument ~schema-map ~fn-sym))
-               '~fn-sym))
+          `(do
+             (set! ~fn-sym (m/-instrument ~schema-map ~fn-sym))
+             '~fn-sym)
 
           (and variadic? single-arity?)
           (do
-            (println "variadic? single-arity? true")
             `(do
-               ;(let [orig-fn# ~fn-sym]
-               ;  (set! ~fn-sym
-               ;    (let [instrumented# (m/-instrument (assoc ~schema-map :scope #{:input}) ~fn-sym)]
-               ;      ;; we need to take the first fixed-arity args and put them in vector and then concat the rest args
-               ;      (fn ~(symbol (str (name fn-sym) "-top-function")) [& args#]
-               ;        (.log js/console "IN REPLACED FN" args#)
-               ;        (let [args2#    (if (coll? args#) args# [args#])
-               ;              [fixed-args# rest-args#] (split-at ~max-fixed-args (vec args2#))
-               ;              _#        (js/console.log "repl 2 fixed: " fixed-args# "rest: " rest-args#)
-               ;              all-args# (into (vec fixed-args#) (vec rest-args#))
-               ;              _#        (js/console.log "repl 3")
-               ;              ;args2#    (apply list* args#)
-               ;              ]
-               ;          (.log js/console "TOP in single arity variadic")
-               ;          (.log js/console "TOP max fixed: " ~max-fixed-args)
-               ;          (.log js/console "TOP fixed args: " fixed-args#)
-               ;          (.log js/console "TOP rest args: " rest-args#)
-               ;          (.log js/console "TOP args2#: " args2#)
-               ;          ;(.log js/console "TOP args2#: " (into-array args2#))
-               ;          ;(.log js/console "into [] args#: " (into [] cat args#))
-               ;
-               ;          (.log js/console "TOP calling instrumented fn ")
-               ;          ;(apply instrumented# fixed-args# rest-args#)
-               ;          (apply orig-fn# args2#)
-               ;          ;(apply instrumented# args2#)
-               ;          ;(.apply instrumented# instrumented# (into-array all-args#))
-               ;          ;(apply instrumented# ~@(map `(fn [i#] (get fixed-args# i#)) (range ~max-fixed-args)) rest-args#)
-               ;          )
-               ;        ))))
-
-
-               ;(set! ~fn-sym (let [instrumented# (m/-instrument (assoc ~schema-map :scope #{:input}) ~fn-sym)]
-               ;                (fn  ~(symbol (str (name fn-sym) "-TOP"))
-               ;                  [~@(map (fn [i] (symbol (str "arg" i))) (range max-fixed-args)) rest-args#]
-               ;                  ;[& args#]
-               ;                  (.log js/console "TOP in single arity variadic")
-               ;                  (.log js/console "TOP rest args: " rest-args#)
-               ;                  (apply instrumented# ~@(map (fn [i] (symbol (str "arg" i))) (range max-fixed-args)) rest-args#)
-               ;                  ;(apply instrumented# [args#])
-               ;                  )))
-
                (set! (.-cljs$core$IFn$_invoke$arity$variadic ~fn-sym)
                  (let [orig-fn#      (.-cljs$core$IFn$_invoke$arity$variadic ~fn-sym)
                        instrumented# (m/-instrument (assoc ~schema-map :scope #{:input :output}) (fn [& args#]
                                                                                                    (let [[fixed-args# rest-args#] (split-at ~max-fixed-args (vec args#))]
-                                                                                                     (.log js/console "IN INSTRUMENTED FUNCTION " args#)
-                                                                                                     (.log js/console "ORIG fn: " orig-fn#)
-                                                                                                     (.log js/console "FIXED ARGS " fixed-args#)
-                                                                                                     (.log js/console "REST ARGS " rest-args#)
+                                                                                                     ;(.log js/console "IN INSTRUMENTED FUNCTION " args#)
+                                                                                                     ;(.log js/console "ORIG fn: " orig-fn#)
+                                                                                                     ;(.log js/console "FIXED ARGS " fixed-args#)
+                                                                                                     ;(.log js/console "REST ARGS " rest-args#)
                                                                                                      (apply orig-fn# (into (vec fixed-args#) [(not-empty rest-args#)])))))]
-                   ;; we need to take the first fixed-arity args and put them in vector and then concat the rest args
-
-
                    (fn ~(symbol (str (name fn-sym) "-variadic"))
-                     ;[~@(map (fn [i] (symbol (str "arg" i))) (range max-fixed-args)) & rest-args#]
                      [& args#]
                      (let [args2# (apply list* args#)]
-                       (.log js/console "in single arity variadic")
-                       (.log js/console "ALL ARGS: " args2#)
-                       ;(.log js/console "rest args: " rest-args#)
-                       ;(.log js/console "ALL ARGS: " (into-array (into [~@(map (fn [i] (symbol (str "arg" i))) (range max-fixed-args))] rest-args#)))
-                       ;(.call (.-cljs$core$IFn$_invoke$arity$variadic instrumented#) null (into-array (into [~@(map (fn [i] (symbol (str "arg" i))) (range max-fixed-args))] rest-args#)))
-
-                       ;(apply instrumented# (conj [~@(map (fn [i] (symbol (str "arg" i))) (range max-fixed-args))] rest-args#))
-                       ;(apply instrumented# ~@(map (fn [i] (symbol (str "arg" i))) (range max-fixed-args)) rest-args#)
-                       (apply instrumented# args2#))
-                     )
-
-
-                   ;(fn ~(symbol (str (name fn-sym) "-variadic")) [& args#]
-                   ;  (let [[fixed-args# [rest-args#]] (split-at ~max-fixed-args (vec args#))
-                   ;        all-args# (into (vec fixed-args#) (vec rest-args#))
-                   ;        args2#    (apply list* args#)]
-                   ;    (.log js/console "=--------------------------------------======================================= in single arity variadic")
-                   ;    (.log js/console "in single arity variadic")
-                   ;    (.log js/console "max fixed: " ~max-fixed-args)
-                   ;    (.log js/console "fixed args: " fixed-args#)
-                   ;    (.log js/console "rest args: " rest-args#)
-                   ;    (.log js/console "args#: " args#)
-                   ;    (.log js/console "total args supplied:  " (count args#))
-                   ;    (.log js/console "args2#: " (into-array args2#))
-                   ;    ;(.log js/console "into [] args#: " (into [] cat args#))
-                   ;
-                   ;    (.log js/console "calling instrumented fn wth args" (pr-str args2#))
-                   ;    (apply instrumented# args#)
-                   ;    ;(apply instrumented# args2#)
-                   ;    ;(apply instrumented# (into (vec fixed-args#) (vec rest-args#)))
-                   ;
-                   ;    ;(.apply instrumented# instrumented# (into-array all-args#))
-                   ;    ))
-                   ))
-               '~fn-sym)
-            )
-
-          ;; for these we will have :function schemas and thus need to parse and loop
-          ;; single- variadic
-          ;variadic?
-          ;`(do (.log js/console "single arity and variadic"))
-          ;`(do ~(emit-multi-arity-inst-code fn-sym schema-map schema) '~fn-sym)
+                       ;(.log js/console "in single arity variadic")
+                       ;(.log js/console "ALL ARGS: " args2#)
+                       (apply instrumented# args2#)))))
+               '~fn-sym))
 
           ;; multi-arity non-variadic
           :else
-          (do (println "ELSE") `(do ~(emit-multi-arity-inst-code fn-sym schema-map schema) '~fn-sym))))))
-(comment
-  (let [[fixed-args [rest-args]] (split-at 1 '(nil (a b)))]
-    rest-args)
-  (take 1 '(nil (nil)))
-  (first (drop 1 '(nil (nil))))
-
-  )
-
-(defn a-fn [a & other]
-  (println "a: " a ", other: " other))
-(comment (a-fn 'x))
-
-(comment
-  (count (quote ([a b])))
-  (emit-replace-var-code 'hello
-    '{:file         "malli/instrument_app.cljs", :line 19, :column 7, :end-line 19, :end-column 16,
-      :arglists     (quote ([& x])),
-
-      :malli/schema [:=> [:cat [:* :any]] some?],
-      :top-fn       {:variadic? true, :fixed-arity 0, :max-fixed-arity 0, :method-params [(x)], :arglists ([& x]), :arglists-meta (nil)}}
-    {}
-    [:=> [:cat [:* :any]] some?]
-
-    ))
+          `(do ~(emit-multi-arity-inst-code fn-sym schema-map schema) '~fn-sym)))))
 
 (defn -emit-instrument-fn [env {:keys [gen filters report] :as instrument-opts}
                            {:keys [schema] :as schema-map} ns-sym fn-sym]
@@ -414,8 +201,6 @@
                              (dissoc $ :gen)))
 
         replace-var-code (when-let [fn-var (ana-api/resolve env fn-sym)]
-                           (println "About to emit: " fn-sym)
-                           (println "meta: " (:meta fn-var))
                            (emit-replace-var-code fn-sym (:meta fn-var) schema-map-with-gen schema))]
     (println "----------------------------------------------------------------------------------------")
     (println "REPLACE VAR CODE")
