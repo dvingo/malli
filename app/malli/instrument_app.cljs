@@ -222,7 +222,7 @@
 ;  ([a b] (str a b)))
 
 (defn multi-arity-variadic-fn
-  {:malli/schema
+  #_{:malli/schema
    [:function
     ;[:=> [:cat] [:int]]
     [:=> [:cat :int] [:int]]
@@ -262,8 +262,9 @@
    (= 500 (multi-arity-variadic-fn))
    (= 2 (multi-arity-variadic-fn 1))
    (= "ab" (multi-arity-variadic-fn "a" "b"))
-   (= "ab(\"c\")" (multi-arity-variadic-fn "a" "b" "c"))
-   ;(multi-arity-variadic-fn "a")
+   (= "ab(\"c\")" (multi-arity-variadic-fn "a" "b" "c" :x))
+  (println (multi-arity-variadic-fn "a" "b" "c" :x))
+  ;(multi-arity-variadic-fn "a")
 
    ;(multi-arity-variadic-fn 1 2)
 
@@ -288,6 +289,7 @@
   )
 
 (defn ^:dev/after-load x []
+
   (println "AFTER LOAD - malli.dev.cljs/start!")
   (println "AFTER LAOAD")
 

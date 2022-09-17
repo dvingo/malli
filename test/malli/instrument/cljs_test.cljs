@@ -162,7 +162,7 @@
     (is (= 500 (multi-arity-variadic-fn)))
     (is (= 2 (multi-arity-variadic-fn 1)))
     (is (= "ab" (multi-arity-variadic-fn "a" "b")))
-    (is (= "ab(\"c\")" (multi-arity-variadic-fn "a" "b" "c")))
+    (is (= "abc(\"d\")" (multi-arity-variadic-fn "a" "b" "c" "d")))
     (is (thrown-with-msg? js/Error #":malli.core/invalid-input" (multi-arity-variadic-fn "a")))
     (is (thrown-with-msg? js/Error #":malli.core/invalid-input" (multi-arity-variadic-fn 1 2)))
     (is (thrown-with-msg? js/Error #":malli.core/invalid-input" (multi-arity-variadic-fn 1 2 :c)))
