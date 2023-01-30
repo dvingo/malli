@@ -1,8 +1,8 @@
 (ns malli.experimental-test
   (:require [clojure.test :refer [deftest is testing]]
-            [malli.dev]
             [malli.experimental :as mx]
-            [malli.instrument :as mi]))
+            [malli.instrument :as mi])
+  #?(:clj (:require [malli.dev])))
 
 ;; normal, no-args
 (mx/defn f1 [] 1)
@@ -121,35 +121,38 @@
      {:mode mode
       :filters [(mi/-filter-var #(= % v))]})))
 
-(deftest defn-test
-  (require 'malli.experimental-test :reload)
-  (doseq [{:keys [var calls instrumented] :as e} expectations]
+;; TODO: this has lots of mysterious failures in cljs mode, including
+;; - extra (quote ...) around metadata
+;; - instrumentation doesn't seem to work
+#?(:clj
+   (deftest defn-test
+     (doseq [{:keys [var calls instrumented] :as e} expectations]
 
-    (testing "plain calls"
-      (doseq [[arg ret] calls]
-        (if (= ::throws ret)
-          (is (thrown? Exception (apply var arg)))
-          (let [actual (try (apply var arg)
-                            (catch Throwable ex
-                              (println "Unexpected failure in plain call" e [arg ret])
-                              (throw ex)))]
-            (is (= ret actual))))))
+       (testing "plain calls"
+         (doseq [[arg ret] calls]
+           (testing (pr-str var arg)
+             (if (= ::throws ret)
+               (is (thrown? #?(:clj Exception :cljs js/Error) (apply var arg)))
+               (let [actual (apply var arg)]
+                 (is (= ret actual)))))))
 
-    (when-let [m (:meta e)]
-      (testing "meta"
-        (doseq [[k v] m]
-          (is (= v (k (meta var)))))))
+       (when-let [m (:meta e)]
+         (testing "meta"
+           (doseq [[k v] m]
+             (testing k
+               (is (= v (k (meta var))))))))
 
-    (when instrumented
-      (testing "instrumented calls"
-        (-strument! :instrument var)
-        (try
-          (doseq [[arg ret] instrumented]
-            (if (= ::throws ret)
-              (is (thrown? Exception (apply var arg)))
-              (is (= ret (apply var arg)))))
-          (finally
-            (-strument! :unstrument var)))))))
+       (when instrumented
+         (testing "instrumented calls"
+           (-strument! :instrument var)
+           (try
+             (doseq [[arg ret] instrumented]
+               (testing (pr-str var arg)
+                 (if (= ::throws ret)
+                   (is (thrown? #?(:clj Exception :cljs js/Error) (apply var arg)))
+                   (is (= ret (apply var arg))))))
+             (finally
+               (-strument! :unstrument var))))))))
 
 
 (mx/defn ^:malli/always f4-checked :- [:int {:min 0}]
@@ -179,12 +182,12 @@
           "valid input works")
       (is (= :malli.core/invalid-input
              (try (f -2 1)
-                  (catch Exception e
+                  (catch #?(:clj Exception :cljs js/Error) e
                     (:type (ex-data e)))))
           "invalid input throws")
       (is (= :malli.core/invalid-output
              (try (f 2 -3)
-                  (catch Exception e
+                  (catch #?(:clj Exception :cljs js/Error) e
                     (:type (ex-data e)))))
           "invalid output throws")))
   (testing "other arity of multiple arity function"
@@ -192,18 +195,20 @@
         "valid input works")
     (is (= :malli.core/invalid-input
            (try (f4-checked-multiarity 1)
-                (catch Exception e
+                (catch #?(:clj Exception :cljs js/Error) e
                   (:type (ex-data e)))))
         "invalid input throws")))
 
 (deftest always-test
   (testing "without malli.dev"
     (always-assertions))
-  (testing "with malli.dev/start!"
-    (malli.dev/start!)
-    (try
-      (always-assertions)
-      (finally
-        (malli.dev/stop!))))
-  (testing "after malli.dev/stop!"
-    (always-assertions)))
+  #?(:clj
+     (do
+       (testing "with malli.dev/start!"
+         (malli.dev/start!)
+         (try
+           (always-assertions)
+           (finally
+             (malli.dev/stop!))))
+       (testing "after malli.dev/stop!"
+         (always-assertions)))))
