@@ -1,5 +1,7 @@
 (ns malli.experimental-test
   (:require [clojure.test :refer [deftest is testing]]
+            [clojure.string :as str]
+            #?(:cljs [goog.object :as g])
             [malli.experimental :as mx]
             [malli.instrument :as mi])
   #?(:clj (:require [malli.dev])))
@@ -39,79 +41,89 @@
   {:more "meta"})
 
 (def expectations
-  [{:var #'f1
-    :calls [[nil 1]
-            [[1] ::throws]]
+  [{:var          #'f1
+    :var-meta     (meta #'f1)
+    :calls        [[nil 1]
+                   [[1] #?(:clj ::throws :cljs 1)]]
     :instrumented [[nil 1]
                    [[1] ::throws]]}
-   {:var #'f2
-    :calls [[[1] 1]
-            [["kikka"] "kikka"]
-            [[] ::throws]
-            [[1 2] ::throws]]
+   {:var          #'f2
+    :var-meta     (meta #'f2)
+    :calls        [[[1] 1]
+                   [["kikka"] "kikka"]
+                   [[] #?(:clj ::throws :cljs nil)]
+                   [[1 2] #?(:clj ::throws :cljs 1)]]
     :instrumented [[[1] 1]
                    [["kikka"] "kikka"]
                    [[] ::throws]
                    [[1 2] ::throws]]}
-   {:var #'f3
-    :meta {:arglists '([x])
-           :raw-arglists '[[x :- :int]]
-           :schema [:=> [:cat :int] :any]}
-    :calls [[[1] 1]
-            [["kikka"] "kikka"]
-            [[1 2] ::throws]]
+   {:var          #'f3
+    :var-meta     (meta #'f3)
+    :meta         {:arglists     '([x])
+                   :raw-arglists '[[x :- :int]]
+                   :schema       [:=> [:cat :int] :any]}
+    :calls        [[[1] 1]
+                   [["kikka"] "kikka"]
+                   [[1 2] #?(:clj ::throws :cljs 1)]]
     :instrumented [[[1] 1]
                    [["kikka"] ::throws]
                    [[1 2] ::throws]]}
-   {:var #'f4
-    :meta {:doc "int int -> int functions"
-           :arglists '([x y])
-           :raw-arglists '([x :- [:int {:min 0}] y :- :int])
-           :schema [:=> [:cat [:int {:min 0}] :int] [:int {:min 0}]]}
-    :calls [[[1 2] 3]
-            [[-2 1] -1]
-            [[-1 -1] -2]
-            [[1 "2"] ::throws]]
+   {:var          #'f4
+    :var-meta     (meta #'f4)
+    :meta         {:doc          "int int -> int functions"
+                   :arglists     '([x y])
+                   :raw-arglists '([x :- [:int {:min 0}] y :- :int])
+                   :schema       [:=> [:cat [:int {:min 0}] :int] [:int {:min 0}]]}
+    :calls        [[[1 2] 3]
+                   [[-2 1] -1]
+                   [[-1 -1] -2]
+                   [[1 "2"] #?(:clj ::throws :cljs "12")]]
     :instrumented [[[1 2] 3]
                    [[-2 1] ::throws] ;; input
                    [[2 -3] ::throws] ;; ret
                    [[1 "2"] ::throws]]}
-   {:var #'f5
-    :meta {:arglists '([[& {:keys [a b], :as m1}] & {:keys [c d], :as m2}])
-           :raw-arglists '([[& {:keys [a b] :as m1} :- AB]
-                            & {:keys [c d] :as m2} :- CD])
-           :schema [:=>
-                    [:cat [:maybe [:cat AB]] CD]
-                    [:cat :int :int :int :int AB CD]]}
-    :calls [[[[{:a 1, :b 2}] {:c 3, :d 4}]
-             [1 2 3 4 {:a 1, :b 2} {:c 3, :d 4}]]
-            [[[{:a -1, :b 2}] {:c 3, :d 4}]
-             [-1 2 3 4 {:a -1, :b 2} {:c 3, :d 4}]]]
+   {:var          #'f5
+    :var-meta     (meta #'f5)
+    :meta         {:arglists     '([[& {:keys [a b], :as m1}] & {:keys [c d], :as m2}])
+                   :raw-arglists '([[& {:keys [a b] :as m1} :- AB]
+                                    & {:keys [c d] :as m2} :- CD])
+                   :schema       #?(:clj [:=>
+                                          [:cat [:maybe [:cat AB]] CD]
+                                          [:cat :int :int :int :int AB CD]]
+                                    :cljs
+                                    '[:=>
+                                      [:cat [:maybe [:cat AB]] CD]
+                                      [:cat :int :int :int :int AB CD]])}
+    :calls        [[[[{:a 1, :b 2}] {:c 3, :d 4}]
+                    [1 2 3 4 {:a 1, :b 2} {:c 3, :d 4}]]
+                   [[[{:a -1, :b 2}] {:c 3, :d 4}]
+                    [-1 2 3 4 {:a -1, :b 2} {:c 3, :d 4}]]]
     :instrumented [[[[{:a 1, :b 2}] {:c 3, :d 4}]
                     [1 2 3 4 {:a 1, :b 2} {:c 3, :d 4}]]
                    [[[{:a -1, :b 2}] {:c 3, :d 4}]
                     ::throws]]}
-   {:var #'f6
-    :meta {:arglists '([x] [x y] [x y & zs])
-           :raw-arglists '([x :- [:int {:min 0}]]
-                           [x :- [:int {:min 0}] y :- :int]
-                           [x :- [:int {:min 0}] y :- :int & zs :- [:* :int]])
-           :schema [:function
-                    [:=> [:cat [:int {:min 0}]] [:int {:min 0}]]
-                    [:=> [:cat [:int {:min 0}] :int] [:int {:min 0}]]
-                    [:=> [:cat [:int {:min 0}] :int [:* :int]] [:int {:min 0}]]]}
-    :calls [[[1] 2]
-            [[-1] 0]
-            [[1 2] 3]
-            [[1 -2] -1]
-            [[-1 2] 1]
-            [[1 2 3 4] 10]
-            [[-1 2 3 4] 8]]
-    :instrumented [[[1] 2]
-                   [[-1] ::throws]
+   {:var          #'f6
+    :var-meta     (meta #'f6)
+    :meta         {:arglists     '([x] [x y] [x y & zs])
+                   :raw-arglists '([x :- [:int {:min 0}]]
+                                   [x :- [:int {:min 0}] y :- :int]
+                                   [x :- [:int {:min 0}] y :- :int & zs :- [:* :int]])
+                   :schema       [:function
+                                  [:=> [:cat [:int {:min 0}]] [:int {:min 0}]]
+                                  [:=> [:cat [:int {:min 0}] :int] [:int {:min 0}]]
+                                  [:=> [:cat [:int {:min 0}] :int [:* :int]] [:int {:min 0}]]]}
+    :calls        [[[1] 2]
+                   [[-1] 0]
                    [[1 2] 3]
-                   [[1 -2] ::throws]
-                   [[-1 2] ::throws]
+                   [[1 -2] -1]
+                   [[-1 2] 1]
+                   [[1 2 3 4] 10]
+                   [[-1 2 3 4] 8]]
+    :instrumented [[[1] 2]
+                   [[-1] #?(:clj ::throws :cljs 0)]
+                   [[1 2] 3]
+                   [[1 -2] #?(:clj ::throws :cljs -1)]
+                   [[-1 2] #?(:clj ::throws :cljs 1)]
                    [[1 2 3 4] 10]
                    [[-1 2 3 4] ::throws]]}])
 
@@ -121,39 +133,50 @@
      {:mode mode
       :filters [(mi/-filter-var #(= % v))]})))
 
-;; TODO: this has lots of mysterious failures in cljs mode, including
-;; - extra (quote ...) around metadata
-;; - instrumentation doesn't seem to work
-#?(:clj
-   (deftest defn-test
-     (doseq [{:keys [var calls instrumented] :as e} expectations]
+#?(:cljs (defn -prop-js-path [ns prop] (into-array (map munge (conj (str/split (str ns) #"\.") prop)))))
+#?(:cljs (defn -get-prop [ns prop] (g/getValueByKeys goog/global (-prop-js-path ns prop))))
+#?(:cljs (defn -find-var
+           ([v] (let [[ns s] (str/split (subs (str v) 2) #"/")] (-get-prop ns s)))
+           ([n s] (-get-prop n s))))
 
-       (testing "plain calls"
-         (doseq [[arg ret] calls]
-           (testing (pr-str var arg)
-             (if (= ::throws ret)
-               (is (thrown? #?(:clj Exception :cljs js/Error) (apply var arg)))
-               (let [actual (apply var arg)]
-                 (is (= ret actual)))))))
+(deftest ^:simple defn-test
+  (doseq [{:keys [var var-meta calls instrumented] :as e} expectations]
 
-       (when-let [m (:meta e)]
-         (testing "meta"
-           (doseq [[k v] m]
-             (testing k
-               (is (= v (k (meta var))))))))
+    (testing "plain calls"
+      (doseq [[arg ret] calls]
+        (testing (pr-str var arg)
+          (if #?(:cljs false :clj (= ::throws ret))
 
-       (when instrumented
-         (testing "instrumented calls"
-           (-strument! :instrument var)
-           (try
-             (doseq [[arg ret] instrumented]
-               (testing (pr-str var arg)
-                 (if (= ::throws ret)
-                   (is (thrown? #?(:clj Exception :cljs js/Error) (apply var arg)))
-                   (is (= ret (apply var arg))))))
-             (finally
-               (-strument! :unstrument var))))))))
+            (is (thrown? #?(:clj Exception :cljs js/Error)
+                  (apply var arg)))
+            (let [actual (apply var arg)]
+              (is (= ret actual)))))))
 
+    (when-let [m (:meta e)]
+      (testing "meta"
+        (doseq [[k v] m]
+          (testing k
+            (let [m (k (meta var))]
+              (is (= #?(:clj v :cljs v )
+                    #?(:clj m :cljs (if (and (list? m) (= 'quote (first m))) (vec (second m)) m))
+                    )))))))
+    (when instrumented
+      (testing "instrumented calls"
+        (-strument! :instrument var)
+        (try
+          (doseq [[arg ret] instrumented]
+            (testing (pr-str var arg)
+              (if (= ::throws ret)
+                (is (thrown? #?(:clj Exception :cljs js/Error)
+                      #?(:clj (apply var arg)
+                         :cljs
+                         (let [accessor (str "cljs$core$IFn$_invoke$arity$" (count arg)), arity-fn (g/get (-find-var var) accessor)]
+                           (.apply arity-fn arity-fn arg)))))
+                (is (= ret
+                      #?(:clj (apply var arg)
+                         :cljs (apply (-find-var var) arg)))))))
+          (finally
+            (-strument! :unstrument var)))))))
 
 (mx/defn ^:malli/always f4-checked :- [:int {:min 0}]
   "int int -> int functions"
@@ -172,6 +195,7 @@
    (+ x y))
   ([x :- [:int {:min 2}]]
    x))
+
 
 (defn always-assertions []
   (doseq [[f description] [[f4-checked ":malli/always meta on var"]
