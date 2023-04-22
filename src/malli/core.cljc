@@ -962,7 +962,7 @@
 (defn -map-schema
   ([]
    (-map-schema {:naked-keys true}))
-  ([opts] ;; :naked-keys, :lazy, :pred
+  ([opts] ;; :naked-keys, :lazy, :pred, :xf
    ^{:type ::into-schema}
    (reify
      AST
@@ -974,6 +974,7 @@
      (-children-schema [_ _])
      (-into-schema [parent {:keys [closed] :as properties} children options]
        (let [pred? (:pred opts map?)
+             xf    (:xf opts identity)
              entry-parser (-create-entry-parser children opts options)
              form (delay (-create-entry-form parent properties entry-parser options))
              cache (-create-cache options)
@@ -1006,7 +1007,7 @@
                                                 (reduce
                                                  (fn [m k] (if (contains? keyset k) m (reduced (reduced ::invalid))))
                                                  m (keys m)))))]
-                          (fn [x] (if (pred? x) (reduce (fn [m parser] (parser m)) x parsers) ::invalid))))]
+                          (fn [x] (if (pred? x) (reduce (fn [m parser] (parser m)) (xf x) parsers) ::invalid))))]
          ^{:type ::schema}
          (reify
            AST
@@ -1028,7 +1029,7 @@
                                 (and closed (not default-validator))
                                 (conj (fn [m] (reduce (fn [acc k] (if (contains? keyset k) acc (reduced false))) true (keys m)))))
                    validate (miu/-every-pred validators)]
-               (fn [m] (and (pred? m) (validate m)))))
+               (fn [m] (and (pred? m) (validate (xf m))))))
            (-explainer [this path]
              (let [keyset (-entry-keyset (-entry-parser this))
                    default-explainer (some-> @default-schema (-explainer (conj path ::default)))
@@ -1060,7 +1061,7 @@
                    (conj acc (miu/-error path in this x ::invalid-type))
                    (reduce
                     (fn [acc explainer]
-                      (explainer x in acc))
+                      (explainer (xf x) in acc))
                     acc explainers)))))
            (-parser [this] (->parser this -parser))
            (-unparser [this] (->parser this -unparser))
@@ -1073,7 +1074,7 @@
                                       [] (cond->> (-entries this) @default-schema (remove -default-entry)))
                    apply->children (when (seq ->children) (-map-transformer ->children))
                    apply->default (when-let [dt (some-> @default-schema (-transformer transformer method options))]
-                                    (fn [x] (merge (dt (reduce (fn [acc k] (dissoc acc k)) x (keys keyset))) (select-keys x (keys keyset)))))
+                                    (fn [x] (let [x (xf x)] (merge (dt (reduce (fn [acc k] (dissoc acc k)) x (keys keyset))) (select-keys x (keys keyset))))))
                    apply->children (some->> [apply->default apply->children] (keep identity) (seq) (apply -comp))
                    apply->children (-guard pred? apply->children)]
                (-intercepting this-transformer apply->children)))
