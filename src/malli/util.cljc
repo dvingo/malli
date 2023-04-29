@@ -1,5 +1,5 @@
 (ns malli.util
-  (:refer-clojure :exclude [merge select-keys find get get-in dissoc assoc update assoc-in update-in keys])
+  (:refer-clojure :exclude [merge select-keys find get get-in dissoc filter assoc update assoc-in update-in keys])
   (:require [clojure.core :as c]
             [malli.core :as m]))
 
@@ -170,7 +170,7 @@
   "Returns a sequence of distinct (f x) values)"
   [f coll]
   (let [seen (atom #{})]
-    (filter (fn [x] (let [v (f x)] (when-not (@seen v) (swap! seen conj v)))) coll)))
+    (c/filter (fn [x] (let [v (f x)] (when-not (@seen v) (swap! seen conj v)))) coll)))
 
 (defn path->in
   "Returns a value path for a given Schema and schema path"
@@ -194,7 +194,7 @@
 
 (defn data-explainer
   "Like `m/explainer` but output is pure clojure data. Schema objects have been replaced with their m/form.
-   Useful when you need to serialise errrors."
+   Useful when you need to serialise errors."
   ([?schema]
    (data-explainer ?schema nil))
   ([?schema options]
@@ -260,7 +260,14 @@
    (select-keys ?schema keys nil))
   ([?schema keys options]
    (let [key-set (set keys)]
-     (transform-entries ?schema #(filter (fn [[k]] (key-set k)) %) options))))
+     (transform-entries ?schema #(c/filter (fn [[k]] (key-set k)) %) options))))
+
+(defn filter
+  "Like [[clojure.core/filter]], but for EntrySchemas."
+  ([f ?schema]
+   (filter f ?schema nil))
+  ([f ?schema options]
+   (transform-entries ?schema #(c/filter (fn [e] (f e)) %) options)))
 
 (defn rename-keys
   "Like [[clojure.set/rename-keys]], but for EntrySchemas. Collisions are resolved in favor of the renamed key, like `assoc`-ing."
@@ -274,7 +281,7 @@
             target-keys (set (vals kmap))
             remove-conflicts (fn [[k]] (or (source-keys k) (not (target-keys k))))
             alter-keys (fn [[k m v]] [(c/get kmap k k) m v])]
-        (->> entries (filter remove-conflicts) (map alter-keys))))
+        (->> entries (c/filter remove-conflicts) (map alter-keys))))
     options)))
 
 (defn dissoc
