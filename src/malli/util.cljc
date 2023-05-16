@@ -263,7 +263,7 @@
      (transform-entries ?schema #(c/filter (fn [[k]] (key-set k)) %) options))))
 
 (defn filter
-  "Like [[clojure.core/filter]], but for EntrySchemas."
+  "Like [[clojure.core/filter]], but for EntrySchemas. The filter function is called with the [k v] for each entry."
   ([f ?schema]
    (filter f ?schema nil))
   ([f ?schema options]

@@ -399,7 +399,12 @@
    (let [get-default (fn [schema]
                        (if-some [e (some-> schema m/properties (find key))]
                          (constantly (val e))
-                         (some->> schema m/type (get defaults) (#(constantly (% schema))))))
+                         ;; todo add recursive support for ref types
+                         ;; if this is empty then (m/deref and recur)
+                         ;; you also want to support passing a registry
+                         (or
+                           (some->> schema m/type (get defaults) (#(constantly (% schema))))
+                           (some->> schema m/deref-all m/type (get defaults) (#(constantly (% schema)))))))
          set-default {:compile (fn [schema _]
                                  (when-some [f (get-default schema)]
                                    (fn [x] (if (nil? x) (default-fn schema (f)) x))))}
