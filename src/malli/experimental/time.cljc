@@ -4,27 +4,6 @@
             #?(:cljs ["@js-joda/core" :as js-joda]))
   #?(:clj (:import (java.time Duration Period LocalDate LocalDateTime LocalTime Instant ZonedDateTime OffsetDateTime ZoneId OffsetTime ZoneOffset))))
 
-(defn <= [^Comparable x ^Comparable y] (not (pos? (.compareTo x y))))
-
-(defn -min-max-pred [_]
-  (fn [{:keys [min max]}]
-    (cond
-      (not (or min max)) nil
-      (and min max) (fn [x] (and (<= x max) (<= min x)))
-      min (fn [x] (<= min x))
-      max (fn [x] (<= x max)))))
-
-(defn -temporal-schema [{:keys [type class type-properties]}]
-  (m/-simple-schema
-    (cond->
-      {:type          type
-       :pred          (fn pred [x]
-                        #?(:clj (.isInstance ^Class class x)
-                           :cljs (instance? class x)))
-       :property-pred (-min-max-pred nil)}
-      type-properties
-      (assoc :type-properties type-properties))))
-
 #?(:cljs
    (do
      (def Period (.-Period js-joda))
@@ -47,6 +26,46 @@
      (def TemporalAccessor (.-TemporalAccessor js-joda))
      (def TemporalQuery (.-TemporalQuery js-joda))
      (def DateTimeFormatter (.-DateTimeFormatter js-joda))))
+
+(defn <= [^Comparable x ^Comparable y] (not (pos? (.compareTo x y))))
+
+(defn compare-periods [^Period p1 ^Period p2]
+  (let [years1  #?(:clj (.getYears p1)  :cljs (.years p1))
+        years2  #?(:clj (.getYears p2)  :cljs (.years p2))
+        months1 #?(:clj (.getMonths p1) :cljs (.months p1))
+        months2 #?(:clj (.getMonths p2) :cljs (.months p2))
+        days1   #?(:clj (.getDays p1)   :cljs (.days p1))
+        days2   #?(:clj (.getDays p2)   :cljs (.days p2))]
+    (cond
+      (not (= years1 years2)) (if (< years1 years2) -1 1)
+      (not (= months1 months2)) (if (< months1 months2) -1 1)
+      :else (if (< days1 days2) -1 (if (> days1 days2) 1 0)))))
+
+(defn -min-max-pred [_]
+  (fn [{:keys [min max]}]
+    (cond
+      (not (or min max)) nil
+      (and
+        (instance? Period min)
+        (instance? Period max))
+      (fn [^Period x]
+        (and
+          (not (pos? (compare-periods x max)))
+          (not (pos? (compare-periods min x)))))
+      (and min max) (fn [x] (and (<= x max) (<= min x)))
+      min (fn [x] (<= min x))
+      max (fn [x] (<= x max)))))
+
+(defn -temporal-schema [{:keys [type class type-properties]}]
+  (m/-simple-schema
+    (cond->
+      {:type          type
+       :pred          (fn pred [x]
+                        #?(:clj (.isInstance ^Class class x)
+                           :cljs (instance? class x)))
+       :property-pred (-min-max-pred nil)}
+      type-properties
+      (assoc :type-properties type-properties))))
 
 #?(:cljs
    (defn createTemporalQuery [f]
