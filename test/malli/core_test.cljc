@@ -1,5 +1,6 @@
 (ns malli.core-test
-  (:require [clojure.string :as str]
+  (:require [clojure.set :as set]
+            [clojure.string :as str]
             [clojure.test :refer [are deftest is testing]]
             [clojure.test.check.generators :as gen]
             [clojure.walk :as walk]
@@ -2765,6 +2766,39 @@
             data-schema (m/schema [MapSchemaWithTypeProperties])]
         (is (= type-properties (m/type-properties data-schema)))
         (is (= [error-message] (me/humanize (m/explain data-schema []))))))
+
+    (testing "support for custom-pred function"
+      (let [custom-map-schema
+                        (m/-map-schema {:type-properties {:error/fn (fn [{:keys [value schema] :as a} _]
+                                                                      (case (:type a)
+                                                                        ::m/missing-key (str "Missing key " (pr-str (:path a)))
+                                                                        ::m/invalid-type (if (map? value)
+                                                                                           (let [present-keys (set (keys value))
+                                                                                                 strict-keys  (:strict-keys (m/properties schema))
+                                                                                                 missing-keys (set/difference strict-keys present-keys)]
+                                                                                             (if (= strict-keys missing-keys)
+                                                                                               "Unknown error"
+                                                                                               (str "Missing strict keys: " (pr-str missing-keys) " from set: " (sort (vec strict-keys)))))
+                                                                                           "Not a map")))}
+                                        :custom-pred     (fn [m props]
+                                                           (and (map? m)
+                                                                (let [strict-keys  (:strict-keys props)
+                                                                     present-keys (set (keys m))
+                                                                     missing-keys (set/difference strict-keys present-keys)]
+                                                                  (or (= (count strict-keys) (count missing-keys))
+                                                                      (empty? missing-keys)))))})
+
+            data-schema (m/schema [custom-map-schema
+                                   {:strict-keys #{:x :y}}
+                                   [:z :int]
+                                   [:a {:optional true} :int]
+                                   [:x {:optional true} :int]
+                                   [:y {:optional true} :int]])]
+        (is (= ["Not a map"] (me/humanize (m/explain data-schema []))))
+        (is (= ["Missing strict keys: #{:x} from set: (:x :y)"] (me/humanize (m/explain data-schema {:y 10 :a 19 :z 5 5 10}))))
+        (is (= {:x ["should be an integer"]} (me/humanize (m/explain data-schema {:y 10 :x "5" :a 19 :z 5 5 10}))))
+        (is (nil? (m/explain data-schema {:a 19 :z 5 5 10})))
+        (is (nil? (m/explain data-schema {:x 10 :y 10 :a 19 :z 5 5 10})))))
 
     (testing "uses transform function when present"
       #?(:clj

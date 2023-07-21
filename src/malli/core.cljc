@@ -962,7 +962,7 @@
 (defn -map-schema
   ([]
    (-map-schema {:naked-keys true}))
-  ([opts] ;; :naked-keys, :lazy, :pred, :xf
+  ([opts] ;; :naked-keys, :lazy, :pred, :xf, :custom-pred
    ^{:type ::into-schema}
    (reify
      AST
@@ -973,7 +973,11 @@
      (-properties-schema [_ _])
      (-children-schema [_ _])
      (-into-schema [parent {:keys [closed] :as properties} children options]
-       (let [pred? (:pred opts map?)
+       (let [custom-pred? (:custom-pred opts)
+             pred?' (:pred opts map?)
+             pred? (fn [x] (if custom-pred?
+                             (and (pred?' x) (custom-pred? x properties))
+                             (pred?' x)))
              xf    (:xf opts identity)
              entry-parser (-create-entry-parser children opts options)
              form (delay (-create-entry-form parent properties entry-parser options))
