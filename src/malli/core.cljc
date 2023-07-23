@@ -270,7 +270,7 @@
   (or (and f (f ?schema) ?schema)
       (if-let [?schema (-lookup ?schema options)]
         (cond-> ?schema rec (recur f rec options))
-        (-fail! ::invalid-schema {:schema ?schema}))))
+        (-fail! (str ::invalid-schema " - " (pr-str (cond-> ?schema (schema? ?schema) -form))) {:schema ?schema}))))
 
 (defn -properties-and-options [properties options f]
   (if-let [r (:registry properties)]
