@@ -270,7 +270,7 @@
    (transform-entries ?schema #(c/filter (fn [e] (f e)) %) options)))
 
 (defn filter-properties
-  "Like [[clojure.core/filter]], but for EntrySchemas. The filter function is called with only the properteis for each entry."
+  "Like [[clojure.core/filter]], but for EntrySchemas. The filter function is called with only the properties for each entry."
   ([f ?schema]
    (filter-properties f ?schema nil))
   ([f ?schema options]
