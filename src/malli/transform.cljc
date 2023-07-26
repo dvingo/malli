@@ -392,8 +392,21 @@
                                            :default-encoder (transform encode :leave)}))))
 
 (defn default-value-transformer
+  "Takes a hashmap of options.
+  :key - the keyword to use from a schema's properties to get its default value - this allows multiple different
+   default values for different purposes.
+
+  :default-fn - takes a schema and the default value from a schema's properties and returns a value.
+    default implementation will return the value as-is, unless it is a function, in which case it will invoke the function
+
+  :defaults - a hashmap from schema types (as returned by malli.core/type to a function that takes a value and returns a value.
+
+  For each schema key its default is determined by first looking for its key in the :defaults map, if it is missing the
+  schema is then deref-all'd and looked up using that type in the :defaults map. This way you can provide default values
+  for ref schemas separate from their base type.
+  "
   ([] (default-value-transformer nil))
-  ([{:keys [key default-fn defaults ::add-optional-keys] :or {key :default, default-fn (fn [_ x] x)}}]
+  ([{:keys [key default-fn defaults ::add-optional-keys] :or {key :default, default-fn (fn [_ x] (if (fn? x) (x) x))}}]
    (let [get-default (fn [schema]
                        (or (some-> schema m/properties :default/fn m/eval)
                            (if-some [e (some-> schema m/properties (find key))]
@@ -414,24 +427,20 @@
                                     (when (seq defaults)
                                       (fn [x]
                                         (if (map? x)
-                                          (reduce-kv
-                                           (fn [acc k f]
-                                             (if-not (contains? x k)
-                                               (assoc acc k (f))
-                                               acc))
-                                           x defaults)
+                                          (reduce-kv (fn [acc k f] (cond-> acc (not (contains? x k)) (assoc k (f))))
+                                            x defaults)
                                           x)))))}]
      (transformer
-      {:default-decoder set-default
-       :default-encoder set-default}
-      {:decoders {:map add-defaults}
-       :encoders {:map add-defaults}}))))
+       {:default-decoder set-default
+        :default-encoder set-default}
+       {:decoders {:map add-defaults}
+        :encoders {:map add-defaults}}))))
 
 (defn collection-transformer []
-  (let [coders {:vector -sequential-or-set->vector
+  (let [coders {:vector     -sequential-or-set->vector
                 :sequential -sequential-or-set->seq
-                :set -sequential->set
-                :tuple -sequential->vector}]
+                :set        -sequential->set
+                :tuple      -sequential->vector}]
     (transformer
-     {:decoders coders
-      :encoders coders})))
+      {:decoders coders
+       :encoders coders})))
