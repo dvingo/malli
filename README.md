@@ -333,7 +333,7 @@ Map schemas can define a special `:malli.core/default` key to handle extra keys:
  {:x 1, :y 2, 1 1, 2 2})
 ; => true
 ```
-default branching can be arbitraty nested:
+default branching can be arbitrarily nested:
 
 ```clojure
 (m/validate
@@ -619,6 +619,17 @@ Explain results can be humanized with `malli.error/humanize`:
 ;{:tags #{["should be a keyword"]}
 ; :address {:city ["missing required key"]
 ;           :lonlat [nil ["should be a double"]]}}
+```
+
+Or if you already have a malli validation exception (e.g. in a catch form):
+
+```clojure
+(require '[malli.error :as me])
+
+(try
+  (m/validate Address {:not "an address"})
+  (catch Exception e
+    (-> e ex-data :data :explain me/humanize)))
 ```
 
 ## Custom error messages

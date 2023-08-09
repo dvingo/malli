@@ -14,6 +14,14 @@ We use [Break Versioning][breakver]. The version numbers follow a `<major>.<mino
 
 Malli is in well matured [alpha](README.md#alpha).
 
+## UNRELEASED
+
+* FIX: retain order with `:catn` unparse, fixes [#925](https://github.com/metosin/malli/issues/925)
+* **BREAKING**: Do not require timezone data directly for cljs [#898](https://github.com/metosin/malli/pull/898) with `malli.experimental.time`
+* Remove non-root swagger definitions [#900](https://github.com/metosin/malli/pull/900)
+* FIX: `malli.core/-comp` keeps interceptor order with long chains [#905](https://github.com/metosin/malli/pull/905)
+* FIX: `malli.dev/start!` exception does not contain source [#896](https://github.com/metosin/malli/issues/896)
+
 ## 0.11.0 (2023-04-12)
 
 * BREAKING: remove map syntax: `mu/from-map-syntax`, `mu/to-map-syntax`. Note that AST syntax and lite syntax remain unchanged.
