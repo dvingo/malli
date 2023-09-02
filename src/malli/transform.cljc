@@ -392,6 +392,18 @@
                                            :default-encoder (transform encode :leave)}))))
 
 (defn default-value-transformer
+  "Takes a hashmap of options.
+   :key - the keyword to use from a schema's properties to get its default value - this allows multiple different
+    default values for different purposes to be attached to one schema.
+
+   :default-fn - takes a schema and the default value from a schema's properties and returns a value.
+    The default implementation will return the value as-is.
+
+   :defaults - a hashmap from schema types (as returned by malli.core/type) to a function that takes a value and returns a value.
+
+   For each schema key its default is determined by first looking for its key in the :defaults map, if it is missing the
+   schema is then deref-all'd and looked up using that type in the :defaults map. This way you can provide default values
+   for ref schemas separate from their base type."
   ([] (default-value-transformer nil))
   ([{:keys [key default-fn defaults ::add-optional-keys] :or {key :default, default-fn (fn [_ x] x)}}]
    (let [get-default (fn [schema]
