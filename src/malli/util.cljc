@@ -1,5 +1,5 @@
 (ns malli.util
-  (:refer-clojure :exclude [merge select-keys find get get-in dissoc assoc update assoc-in update-in keys])
+  (:refer-clojure :exclude [merge select-keys filter find get get-in dissoc assoc update assoc-in update-in keys])
   (:require [clojure.core :as c]
             [malli.core :as m]))
 
@@ -178,7 +178,7 @@
   "Returns a sequence of distinct (f x) values)"
   [f coll]
   (let [seen (atom #{})]
-    (filter (fn [x] (let [v (f x)] (when-not (@seen v) (swap! seen conj v)))) coll)))
+    (c/filter (fn [x] (let [v (f x)] (when-not (@seen v) (swap! seen conj v)))) coll)))
 
 (defn path->in
   "Returns a value path for a given Schema and schema path"
@@ -268,7 +268,7 @@
    (select-keys ?schema keys nil))
   ([?schema keys options]
    (let [key-set (set keys)]
-     (transform-entries ?schema #(filter (fn [[k]] (key-set k)) %) options))))
+     (transform-entries ?schema #(c/filter (fn [[k]] (key-set k)) %) options))))
 
 (defn rename-keys
   "Like [[clojure.set/rename-keys]], but for EntrySchemas. Collisions are resolved in favor of the renamed key, like `assoc`-ing."
@@ -282,7 +282,7 @@
             target-keys (set (vals kmap))
             remove-conflicts (fn [[k]] (or (source-keys k) (not (target-keys k))))
             alter-keys (fn [[k m v]] [(c/get kmap k k) m v])]
-        (->> entries (filter remove-conflicts) (map alter-keys))))
+        (->> entries (c/filter remove-conflicts) (map alter-keys))))
     options)))
 
 (defn dissoc
@@ -299,6 +299,20 @@
   ([?schema k options]
    (let [schema (m/schema (or ?schema :map) options)]
      (when schema (m/-get schema [::m/find k] nil)))))
+
+(defn filter
+  "Like [[clojure.core/filter]], but for EntrySchemas."
+  ([f ?schema]
+   (filter f ?schema nil))
+  ([f ?schema options]
+   (transform-entries ?schema #(c/filter (fn [e] (f e)) %) options)))
+
+(defn filter-properties
+  "Like [[clojure.core/filter]], but for EntrySchemas. The filter function is called with only the properties for each entry."
+  ([f ?schema]
+   (filter-properties f ?schema nil))
+  ([f ?schema options]
+   (transform-entries ?schema #(c/filter (fn [[_ p]] (f p)) %) options)))
 
 (defn keys
   "Like [[clojure.core/keys]], but for EntrySchemas."
