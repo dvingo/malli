@@ -270,7 +270,7 @@
   (or (and f (f ?schema) ?schema)
       (if-let [?schema (-lookup ?schema options)]
         (cond-> ?schema rec (recur f rec options))
-        (-fail! ::invalid-schema {:schema ?schema}))))
+        (-fail! (str ::invalid-schema " - " (pr-str (cond-> ?schema (schema? ?schema) -form))) {:schema ?schema}))))
 
 (defn -properties-and-options [properties options f]
   (if-let [r (:registry properties)]
@@ -2550,17 +2550,18 @@
    which will validate function arguments and return values based on the function schema
    definition. The following properties are used:
 
-   | key       | description |
-   | ----------|-------------|
-   | `:schema` | function schema
-   | `:scope`  | optional set of scope definitions, defaults to `#{:input :output}`
-   | `:report` | optional side-effecting function of `key data -> any` to report problems, defaults to `m/-fail!`
-   | `:gen`    | optional function of `schema -> schema -> value` to be invoked on the args to get the return value"
+   | key           | description |
+   | --------------|-------------|
+   | `:schema`     | function schema
+   | `:scope`      | optional set of scope definitions, defaults to `#{:input :output}`
+   | `:report`     | optional side-effecting function of `key data -> any` to report problems, defaults to `m/-fail!`
+   | `:gen`        | optional function of `schema -> schema -> value` to be invoked on the args to get the return value
+   | `:xform-args` | optional function of `args vector -> args vector` to be invoked before validating the arguments"
   ([props]
    (-instrument props nil nil))
   ([props f]
    (-instrument props f nil))
-  ([{:keys [scope report gen] :or {scope #{:input :output}, report -fail!} :as props} f options]
+  ([{:keys [scope report gen xform-args] :or {scope #{:input :output}, report -fail! xform-args identity} :as props} f options]
    (let [schema (-> props :schema (schema options))]
      (case (type schema)
        :=> (let [{:keys [min max input output]} (-function-info schema)
@@ -2568,16 +2569,16 @@
                  [wrap-input wrap-output] (-vmap (partial contains? scope) [:input :output])
                  f (or (if gen (gen schema) f) (-fail! ::missing-function {:props props}))]
              (fn [& args]
-               (let [args (vec args), arity (count args)]
+               (let [xargs (apply xform-args (vec args)), arity (count xargs)]
                  (when wrap-input
                    (when-not (<= min arity (or max miu/+max-size+))
-                     (report ::invalid-arity {:arity arity, :arities #{{:min min :max max}}, :args args, :input input, :schema schema}))
-                   (when-not (validate-input args)
-                     (report ::invalid-input {:input input, :args args, :schema schema})))
+                     (report ::invalid-arity {:arity arity, :arities #{{:min min :max max}}, :args xargs, :input input, :schema schema}))
+                   (when-not (validate-input xargs)
+                     (report ::invalid-input {:input input, :args xargs, :schema schema})))
                  (let [value (apply f args)]
                    (when wrap-output
                      (when-not (validate-output value)
-                       (report ::invalid-output {:output output, :value value, :args args, :schema schema})))
+                       (report ::invalid-output {:output output, :value value, :args xargs, :schema schema})))
                    value))))
        :function (let [arity->info (->> (children schema)
                                         (map (fn [s] (assoc (-function-info s) :f (-instrument (assoc props :schema s) f options))))
