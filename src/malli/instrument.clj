@@ -77,7 +77,8 @@
                                        form))
                                    (let [ns-part (symbol (namespace form))
                                          name-part (name form)
-                                         full-ns (get-in (find-ns' ns) [:requires ns-part])]
+                                         ;; first attempt to expand any aliased namespaces, or just use the value if it is not in the require list
+                                         full-ns (or (get-in (find-ns' ns) [:requires ns-part]) ns-part)]
                                      (symbol (str full-ns) name-part)))
                                  form))
                 schema* (walk/postwalk -qualify-sym schema)
