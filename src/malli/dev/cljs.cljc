@@ -34,8 +34,8 @@
          (malli.instrument/collect! {:ns ~(if (:ns options)
                                             (:ns options)
                                             (vec (ana-api/all-ns)))})
+         (js/console.groupCollapsed "Malli instrumentation complete")
          (malli.instrument/instrument! (assoc ~options :data (m/function-schemas :cljs)))
-         (js/console.groupCollapsed "Instrumentation done")
          (js/console.groupEnd)))))
 
 ;; only used by deprecated malli.instrument.cljs implementation
