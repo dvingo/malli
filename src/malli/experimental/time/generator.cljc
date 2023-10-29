@@ -102,6 +102,13 @@
         (. LocalTime ofSecondOfDay (mod n seconds-in-day))))
    (gen/large-integer* (-min-max schema options))))
 
+(defmethod mg/-schema-generator :time/inst [schema options]
+  (gen/fmap
+    (fn [v]
+      #?(:clj (java.util.Date. ^long v)
+         :cljs (js/Date. ^long v)))
+    (gen/large-integer* (-min-max schema options))))
+
 (comment
  (gen/sample (mg/-schema-generator (time/-local-date-time-schema) nil) 1000))
 

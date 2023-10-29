@@ -423,7 +423,9 @@
                        (or (some-> schema m/properties :default/fn m/eval)
                            (if-some [e (some-> schema m/properties (find key))]
                              (constantly (val e))
-                             (some->> schema m/type (get defaults) (#(constantly (% schema)))))))
+                             (or
+                               (some->> schema m/type (get defaults) (#(constantly (% schema))))
+                               (some->> schema m/deref-all m/type (get defaults) (#(constantly (% schema))))))))
          set-default {:compile (fn [schema _]
                                  (when-some [f (get-default schema)]
                                    (fn [x] (if (nil? x) (default-fn schema (f)) x))))}
