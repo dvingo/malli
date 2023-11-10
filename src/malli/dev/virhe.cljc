@@ -73,7 +73,10 @@
     (fipp.edn/pretty-coll this (-color :text "[" this) x :line (-color :text "]" this) fipp.visit/visit))
 
   (visit-map [this x]
-    (let [xs (sort-by identity (fn [a b] (arrangement.core/rank (first a) (first b))) x)]
+    (let [xs (sort-by identity (fn [a b]
+                                 (try
+                                   (arrangement.core/rank (first a) (first b))
+                                   (catch #?(:clj Exception :cljs :default) _ -1))) x)]
       (fipp.edn/pretty-coll this (-color :text "{" this) xs [:span (-color :text "," this) :line] (-color :text "}" this)
                             (fn [printer [k v]]
                               [:span (fipp.visit/visit printer k) " " (fipp.visit/visit printer v)]))))
