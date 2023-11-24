@@ -27,10 +27,10 @@
                                 :cljs (.totalSeconds ^ZoneOffset o))
     (instance? LocalDateTime o)
     (unchecked-add
-     (unchecked-multiply (.toEpochDay (.toLocalDate ^LocalDateTime o)) seconds-in-day)
+     (unchecked-multiply (.toEpochDay (.toLocalDate ^{:tag #?(:clj LocalDateTime :cljs js)} o)) seconds-in-day)
      (-to-long (.toLocalTime ^LocalDateTime o)))
-    (instance? OffsetDateTime o) (.toEpochMilli (.toInstant ^OffsetDateTime o))
-    (instance? ZonedDateTime o) (.toEpochMilli (.toInstant ^ZonedDateTime o))
+    (instance? OffsetDateTime o) (.toEpochMilli (.toInstant ^{:tag #?(:clj OffsetDateTime :cljs js)} o))
+    (instance? ZonedDateTime o) (.toEpochMilli (.toInstant ^{:tag #?(:clj ZonedDateTime :cljs js)} o))
     (instance? Duration o) (.toNanos ^Duration o)
     (int? o) (long o)))
 
