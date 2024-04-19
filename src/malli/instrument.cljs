@@ -107,8 +107,11 @@
                                         (cond (and gen (true? (:gen d))) (assoc $ :gen gen)
                                               (true? (:gen d)) (dissoc $ :gen)
                                               :else $))]
-                         (if (and original-fn (not (and skip-instrumented? (-instrumented? v))))
-                           (-replace-fn original-fn n s dgen)))
+                         (if (and skip-instrumented? (-instrumented? v))
+                           (println "skipping" (symbol n s) "already instrumented")
+                           (when original-fn
+                             (println "instrumented" (symbol n s))
+                             (-replace-fn original-fn n s dgen))))
 
            :unstrument (when (-instrumented? v)
                          (let [original-fn (or (-original v) v)]
@@ -127,7 +130,8 @@
                                (let [orig (g/get arity-fn "malli$instrument$original")]
                                  (g/set original-fn accessor orig)))
 
-                             :else (g/set (-get-ns n) (munge (name s)) original-fn))))
+                             :else (g/set (-get-ns n) (munge (name s)) original-fn))
+                           (println "unstrumented" (symbol n s))))
            (mode v d)))))))
 
 ;;
