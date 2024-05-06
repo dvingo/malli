@@ -1,12 +1,13 @@
 (ns malli.dev.dom-reporter
-  (:require [malli.core :as m]
+  (:require [clojure.string :as str]
+            [malli.core :as m]
             [malli.error :as me]
             [malli.dev.pretty :as pretty]
             [cljs.pprint :refer [pprint]]
             [goog.dom :as gdom]
             [goog.style :as style]))
 
-(def modal-container-dom-node "malli-instrument-modal-container")
+(def shadow-host-dom-node-id "malli-instrument-modal-host")
 (def modal-container-class-name "malli-instrument-modal")
 (def modal-content-class-name "malli-instrument-modal-content")
 
@@ -43,18 +44,18 @@
     (gdom/removeChildren container)
     (gdom/appendChild container dom-tree)))
 
-(comment
-  (gdom/append js/dan (gdom/createDom "h1" #js{:className "hi" :style #js{:color "Blue"}} "hellow"))
-  (hiccup-to-dom [:div
-                  [:h1 {:style {:color "RED"}} "ERROR"]
-                  [:p "The error is: "]
-                  [:pre "hello"]])
-  (render-hiccup! "dan"
-    [:div {:style {:margin "20px"}}
-     [:h3 {:style {:padding "10px 20px"}} "CANGED"]
-     [:h1 {:style {:color "grey"}} "ERROR"]
-     [:p {:style {:border "1px solid yellow"}} "The error is: "]
-     [:pre "hello"]]))
+;(comment
+;  (gdom/append js/dan (gdom/createDom "h1" #js{:className "hi" :style #js{:color "Blue"}} "hellow"))
+;  (hiccup-to-dom [:div
+;                  [:h1 {:style {:color "RED"}} "ERROR"]
+;                  [:p "The error is: "]
+;                  [:pre "hello"]])
+;  (render-hiccup! "test"
+;    [:div {:style {:margin "20px"}}
+;     [:h3 {:style {:padding "10px 20px"}} "CANGED"]
+;     [:h1 {:style {:color "grey"}} "ERROR"]
+;     [:p {:style {:border "1px solid yellow"}} "The error is: "]
+;     [:pre "hello"]]))
 
 (defonce shadow-root_ (atom nil))
 
@@ -69,35 +70,13 @@
 (defn hide-current-modal []
   (hide-modal (find-existing-modal)))
 
-(defn modal-content-style []
-  #js{:borderRadius "4px"
-      :padding "10px 20px"
-      :color "#eee"
-      ;:margin-right "110px"
-      })
-
-(defn modal-container-style []
-  #js {:position "fixed"
-       :top "10%"
-       :left "50%"
-       :transform "translate(-50%, 0)"
-       :max-width "50rem"
-       ;:box-shadow "4px 4px 4px grey"
-       :box-shadow "rgb(78 78 78) 4px 4px 20px 20px"
-       ;:box-shadow "#47474c 4px 4px 20px 20px"
-       :padding "20px 40px 0"
-       :border-radius "4px"
-       :background-color "rgb(51 51 54 / 94%)"
-       ;"rgb(60 56 56 / 94%)"
-       })
-
 (defn modal-hiccup [message]
   [:div ;; shadow-root containing element
    [:div {:className modal-container-class-name
           :style {:position "fixed"
                   :inset "0"
-                  :background "rgba(10, 10, 10, 0.74)"}}
-    [:div {:className "malli-instrument-modal-container" :style (modal-container-style)}
+                  :background "var(--modal-backdrop-background)"}}
+    [:div {:className "malli-instrument-modal-container"}
      [:span {:className "malli-instrument-modal-close"
              :on-click (fn [e] (.log js/console "CLICKED CLOSE" e)
                          (hide-current-modal))
@@ -109,7 +88,7 @@
                      :cursor "pointer"}}
       "×"]
      [:div {:style {:display "flex" :align-items "flex-end"}}
-      [(if (string? message) :pre :div) {:className modal-content-class-name :style (modal-content-style)}
+      [(if (string? message) :pre :div) {:className modal-content-class-name}
        message]
       [:img {:style {:width "130px" :height "264px" :opacity "0.5"} :src "https://raw.githubusercontent.com/metosin/malli/master/docs/img/malli.png"}]]]]])
 
@@ -126,17 +105,121 @@
     (set! (.-display modal-style) "block")))
 
 (defn get-shadow-root-host []
-  (if-let [parent (gdom/getElement modal-container-dom-node)]
+  (if-let [parent (gdom/getElement shadow-host-dom-node-id)]
     parent
-    (let [parent (gdom/createDom "div" #js{:id modal-container-dom-node})]
+    (let [parent (gdom/createDom "div" #js{:id shadow-host-dom-node-id})]
       (.appendChild (.-body js/document) parent)
       parent)))
 
-(defn show-dom-message! [dom-message]
+(defn css-map->str [m]
+  (str
+    (reduce-kv (fn [acc k v]
+                 (str acc (named->str k) ":"
+                   (if (number? v) (str v "px") v) ";"))
+      "{" m)
+    "}"))
+
+(defn css->str [css]
+  (if (every? map? (vals css))
+    (reduce-kv
+      (fn [acc k v]
+        (str acc (named->str k) (css-map->str v)))
+      "" css)
+    (css-map->str css)))
+
+(def colors
+  {:title "var(--title-color)"
+   :title-dark "var(--title-dark-color)"
+   :text "var(--text-color)"
+   :link "var(--link-color)"
+   :string "var(--string-color)"
+   :constant "var(--constant-color)"
+   :type "var(--type-color)"
+   :error "var(--error-color)"})
+
+(def dark-theme
+  {(str "." modal-container-class-name)
+   {:--title-color "rgb(100 100 100)"
+    :--title-dark-color "rgb(100 100 100)"
+    :--text-color "rgb(226 220 205)"
+    :--link-color "rgb(100 100 100)"
+    :--string-color "rgb(100 100 100)"
+    :--constant-color "rgb(100 100 100)"
+    :--type-color "rgb(100 100 100)"
+    :--error-color "rgb(226 220 205)"
+    :--modal-title-color "#d0d0d0"
+    :--modal-close-icon-color "white"
+    :--modal-content-color "rgb(235 238 245)"
+    :--modal-container-shadow "rgb(27 27 30 / 94%) 4px 4px 20px 20px"
+    :--modal-container-background "rgba(51, 51, 54, 0.94)"
+    :--modal-link-color "#59a1df"
+    :--modal-backdrop-background "rgba(10, 10, 10, 0.74)"}})
+
+(def light-theme
+  {(str "." modal-container-class-name)
+   {:--title-color "rgb(100 100 100)"
+    :--title-dark-color "rgb(100 100 100)"
+    :--text-color "rgb(100 100 100)"
+    :--link-color "rgb(100 100 100)"
+    :--string-color "rgb(100 100 100)"
+    :--constant-color "rgb(100 100 100)"
+    :--type-color "rgb(100 100 100)"
+    :--error-color "rgb(72 68 68)"
+    :--modal-title-color "black"
+    :--modal-close-icon-color "black"
+    :--modal-content-color "hsl(0 61% 6% / 1)"
+    :--modal-container-shadow "rgba(51, 51, 54, 0.94) 4px 4px 20px 20px"
+    :--modal-container-background "white"
+    :--modal-link-color "#59a1df"
+    :--modal-backdrop-background "rgb(58 58 67 / 77%)"}})
+
+(def modal-styles
+  {".malli-error > h1"
+   {:color "var(--modal-title-color)"}
+
+   ".malli-instrument-modal-container"
+   {:position "fixed"
+    :top "10%"
+    :left "50%"
+    :transform "translate(-50%, 0)"
+    :max-width "50rem"
+    :box-shadow "var(--modal-container-shadow)"
+    :padding "20px 40px 0"
+    :border-radius "4px"
+    :background-color "var(--modal-container-background)"}
+
+   (str "." modal-content-class-name)
+   {:border-radius "4px"
+    :padding "10px 20px"
+    :color "var(--modal-content-color)"}
+
+   ".malli-instrument-modal-close"
+   {:color "var(--modal-close-icon-color)"}})
+
+(def themes {:light light-theme :dark dark-theme})
+
+(defn make-css-str [theme]
+  (str
+    (css->str (get themes theme dark-theme))
+    (css->str modal-styles)))
+
+(make-css-str :light)
+
+(defn -color [color body]
+  (let [color (get colors color (:error colors))]
+    [:span {:style {:color color}} body]))
+
+(defn make-stylesheet [theme]
+  (doto (js/CSSStyleSheet.)
+    (.replaceSync (make-css-str theme))))
+
+(defn show-dom-message! [dom-message theme]
   (let [modal (create-or-update-modal! dom-message)]
     (when-not (find-existing-modal)
       (let [parent (get-shadow-root-host)
+            sheet (make-stylesheet theme)
             shadow-root (.attachShadow parent #js{:mode "open"})]
+        (set! (.-adoptedStyleSheets shadow-root) #js [sheet])
         (.appendChild shadow-root modal)
         (reset! shadow-root_ shadow-root)))
     (show-modal modal)))
@@ -145,29 +228,24 @@
   (when-let [modal (find-existing-modal)]
     (hide-modal modal)))
 
-(def -dark-colors
-  {:title 45
-   :title-dark 32
-   :text 253
-   :link 255
-   :string 180
-   :constant 149
-   :type 123
-   :error 196})
-
-(def colors -dark-colors)
-
-(defn -color [color body]
-  (let [color (get colors color (:error colors))]
-    [:span {:style {:color color}} body]))
-
-(defn -visit [args]
+(defn -visit [x]
   (cond
-    (nil? args)
-    [:span (-color :text "nil")]
-
-    :else
-    [:span (-color :text (pr-str args))]))
+    (nil? x) [:span (-color :text "nil")]
+    (boolean? x) [:span (-color :text (str x))]
+    (string? x) [:span (-color :text (pr-str x))]
+    (char? x) [:span (-color :text (pr-str x))]
+    ;(symbol? x) (visit-symbol visitor x)
+    ;(keyword? x) (visit-keyword visitor x)
+    ;(number? x) (visit-number visitor x)
+    ;(seq? x) (visit-seq visitor x)
+    ;(vector? x) (visit-vector visitor x)
+    ;(record? x) (visit-record visitor x)
+    ;(map? x) (visit-map visitor x)
+    ;(set? x) (visit-set visitor x)
+    ;(tagged-literal? x) (visit-tagged visitor x)
+    (var? x) [:span (-color :text (str x))]
+    (regexp? x) [:span (-color :text (pr-str x))]
+    :else (-color :text (pr-str x))))
 
 ;(defrecord EdnPrinter [symbols print-meta print-length print-level unknown]
 ;
@@ -243,8 +321,6 @@
 ;  (visit-record [this x]
 ;    (fipp.visit/visit this (fipp.ednize/record->tagged x))))
 
-
-
 (defmulti -format (fn [err-type data printer] err-type) :default ::default)
 
 (defmethod -format ::default [e data printer]
@@ -254,8 +330,7 @@
     [:p "Type:" (type e)]
     [:p "Message:" (ex-message e)]
     (when-let [data (ex-data e)]
-      [:p "Ex-data:" (-visit data)])
-    ]])
+      [:p "Ex-data:" (-visit data)])]])
 
 (def label-styles
   #js{:padding "10px 0px"
@@ -263,6 +338,11 @@
       :font-weight "700"})
 
 (def label-attrs {:style label-styles})
+
+(def docs-link
+  [:a {:href "https://cljdoc.org/d/metosin/malli/CURRENT/doc/function-schemas"
+       :style {:color "var(--modal-link-color)"}
+       :ref "nooper" :target "_blank"} "function schema docs"])
 
 (defmethod -format ::m/invalid-input [_ {:keys [args input fn-name]} printer]
   [:div {:className "malli-error"}
@@ -281,13 +361,12 @@
     [:pre
      (with-out-str
        (pprint
-         (me/with-error-messages (m/explain input args))
+         (update
+           (me/with-error-messages (m/explain input args))
+           :schema m/form)
          ;(pretty/-explain input args printer)
          ))]
-    [:p {:style {:padding "20px 0"}} "More information "
-     [:a {:href "https://cljdoc.org/d/metosin/malli/CURRENT/doc/function-schemas"
-          :style {:color "#59a1df"}
-          :ref "nooper" :target "_blank"} "function schema docs"]]]])
+    [:p {:style {:padding "20px 0"}} "More information " docs-link]]])
 
 (defmethod -format ::m/invalid-output [_ {:keys [value args output fn-name]} printer]
   [:div {:className "malli-error"}
@@ -308,25 +387,30 @@
     [:p label-attrs "Errors"]
     [:pre
      (with-out-str
-       (pprint (me/with-error-messages (m/explain output value))))]
-    [:p {:style {:padding "20px 0"}} "More information "
-     [:a {:href "https://cljdoc.org/d/metosin/malli/CURRENT/doc/function-schemas"
-          :style {:color "#59a1df"}
-          :ref "nooper" :target "_blank"} "function schema docs"]]]])
+       (pprint
+         (update
+          (me/with-error-messages (m/explain output value))
+           :schema m/form)))]
+    [:p {:style {:padding "20px 0"}} "More information " docs-link]]])
+
+(defn get-preferred-color-scheme []
+  (if (.-matches (js/window.matchMedia "(prefers-color-scheme:light)"))
+    :light :dark))
 
 (defn dom-reporter
-  []
-  (let [printer (pretty/-printer)
-        report (pretty/reporter printer)]
-    (fn [type data]
-      (let [message (with-out-str (report type data))
-            dom-message (-format type data printer)]
-        (def err-type type)
-        (def data' data)
-        (def dom' dom-message)
-        (.log js/console "ERROR type: " (pr-str type) ", data: " (pr-str data))
-        (.log js/console "message: " message)
-        (show-dom-message! dom-message)))))
+  ([] (dom-reporter (get-preferred-color-scheme)))
+  ([theme]
+   (let [printer (pretty/-printer)
+         report (pretty/reporter printer)]
+     (fn [type data]
+       (let [message (with-out-str (report type data))
+             dom-message (-format type data printer)]
+         (def err-type type)
+         (def data' data)
+         (def dom' dom-message)
+         (.log js/console "ERROR type: " (pr-str type) ", data: " (pr-str data))
+         (.log js/console "message: " message)
+         (show-dom-message! dom-message theme))))))
 
 (defn dom-reporter-with-thrower
   []

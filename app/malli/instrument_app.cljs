@@ -31,6 +31,8 @@
   [x y]
   (+ x y))
 
+(my-ex-fn "5")
+
 ;(defn add-dates [a b]
 ;  {:malli/schema [:=> [:cat :time/local-date :time/local-date] :time/local-date]}
 
