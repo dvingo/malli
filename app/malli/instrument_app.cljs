@@ -10,13 +10,13 @@
    [malli.experimental :as mx]
    [malli.experimental.time :as time]))
 
-(js/console.log "now: " (time/LocalDate.now))
-(js/console.log "generated: "
-                (gen/sample (mg/-schema-generator (time/-local-date-time-schema) nil) 10))
-
-(js/console.log
- (into-array
-  (mg/sample :time/zoned-date-time {:registry (merge (m/default-schemas) (time/schemas))})))
+;(js/console.log "now: " (time/LocalDate.now))
+;(js/console.log "generated: "
+;                (gen/sample (mg/-schema-generator (time/-local-date-time-schema) nil) 10))
+;
+;(js/console.log
+; (into-array
+;  (mg/sample :time/zoned-date-time {:registry (merge (m/default-schemas) (time/schemas))})))
 
 (mx/defn my-ex-fn :- [:int]
   [a :- :string] (+ 5 a))

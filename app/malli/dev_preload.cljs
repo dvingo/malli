@@ -2,6 +2,9 @@
   {:dev/always true}
   (:require
    [malli.instrument-app]
-   [malli.dev.cljs :as dev]))
+   [malli.dev.dom-reporter :as dom-reporter]
+   [malli.dev.cljs :as malli.dev]))
 
-(dev/start!)
+(malli.dev/start!
+  {:report (dom-reporter/dom-reporter-with-thrower)
+   :skip-instrumented? true})

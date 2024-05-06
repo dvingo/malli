@@ -6,6 +6,7 @@
             [goog.dom :as gdom]
             [goog.style :as style]))
 
+(def modal-container-dom-node "malli-instrument-modal-container")
 (def modal-container-class-name "malli-instrument-modal")
 (def modal-content-class-name "malli-instrument-modal-content")
 
@@ -27,21 +28,14 @@
     (when style-map
       (style/setStyle elem (clj->js style-map)))
     (when on-click
-      (set! (.-onclick elem) (:on-click attrs)))
+      (.addEventListener elem "click" (:on-click attrs)))
     (doseq [child children]
       (if (vector? child)
         (gdom/appendChild elem (hiccup-to-dom child))
         (gdom/appendChild elem (gdom/createTextNode (named->str child)))))
     elem))
 
-(defn append-render-hiccup
-  "Convert hiccup data to DOM object and append to container element with the given ID."
-  [container-id hiccup-data]
-  (let [container (gdom/getElement container-id)
-        dom-tree (hiccup-to-dom hiccup-data)]
-    (gdom/appendChild container dom-tree)))
-
-(defn render-hiccup
+(defn render-hiccup!
   "Convert hiccup data to DOM object and append to container element with the given ID."
   [container-id-or-node hiccup-data]
   (let [container (if (string? container-id-or-node) (gdom/getElement container-id-or-node) container-id-or-node)
@@ -55,15 +49,18 @@
                   [:h1 {:style {:color "RED"}} "ERROR"]
                   [:p "The error is: "]
                   [:pre "hello"]])
-  (render-hiccup "dan"
+  (render-hiccup! "dan"
     [:div {:style {:margin "20px"}}
      [:h3 {:style {:padding "10px 20px"}} "CANGED"]
      [:h1 {:style {:color "grey"}} "ERROR"]
      [:p {:style {:border "1px solid yellow"}} "The error is: "]
      [:pre "hello"]]))
 
+(defonce shadow-root_ (atom nil))
+
 (defn find-existing-modal []
-  (gdom/getElementByClass modal-container-class-name))
+  (when-let [root @shadow-root_]
+    (.-firstChild root)))
 
 (defn hide-modal [modal]
   (let [modal-style (.-style modal)]
@@ -82,44 +79,45 @@
 (defn modal-container-style []
   #js {:position "fixed"
        :top "10%"
-       :left "20%"
+       :left "50%"
+       :transform "translate(-50%, 0)"
        :max-width "50rem"
        ;:box-shadow "4px 4px 4px grey"
-       :box-shadow "#47474c 4px 4px 20px 20px"
+       :box-shadow "rgb(78 78 78) 4px 4px 20px 20px"
+       ;:box-shadow "#47474c 4px 4px 20px 20px"
        :padding "20px 40px 0"
        :border-radius "4px"
-       :background-color "rgb(60 56 56 / 94%)"})
+       :background-color "rgb(51 51 54 / 94%)"
+       ;"rgb(60 56 56 / 94%)"
+       })
 
 (defn modal-hiccup [message]
-  [:div {:className modal-container-class-name
-         :style {:position "fixed"
-                 :top "0"
-                 :right "0"
-                 :bottom "0"
-                 :left "0"
-                 :background "rgba(10, 10, 10, 0.74)"}}
-   [:div {:className "malli-instrument-modal-container" :style (modal-container-style)}
-    [:span {:className "malli-instrument-modal-close"
-            :on-click (fn [e] (.log js/console "CLICKED CLOSE" e)
-                        (hide-current-modal))
-            :style {:position "absolute"
-                    :top "0"
-                    :right "10px"
-                    :font-size "30px"
-                    :line-height "30px"
-                    :cursor "pointer"}}
-     "×"]
-    [:div {:style {:display "flex" :align-items "flex-end"}}
-     [(if (string? message) :pre :div) {:className modal-content-class-name :style (modal-content-style)}
-      message]
-     [:img {:style {:width "130px" :height "264px" :opacity "0.5"} :src "https://raw.githubusercontent.com/metosin/malli/master/docs/img/malli.png"}]]]])
+  [:div ;; shadow-root containing element
+   [:div {:className modal-container-class-name
+          :style {:position "fixed"
+                  :inset "0"
+                  :background "rgba(10, 10, 10, 0.74)"}}
+    [:div {:className "malli-instrument-modal-container" :style (modal-container-style)}
+     [:span {:className "malli-instrument-modal-close"
+             :on-click (fn [e] (.log js/console "CLICKED CLOSE" e)
+                         (hide-current-modal))
+             :style {:position "absolute"
+                     :top "0"
+                     :right "10px"
+                     :font-size "30px"
+                     :line-height "30px"
+                     :cursor "pointer"}}
+      "×"]
+     [:div {:style {:display "flex" :align-items "flex-end"}}
+      [(if (string? message) :pre :div) {:className modal-content-class-name :style (modal-content-style)}
+       message]
+      [:img {:style {:width "130px" :height "264px" :opacity "0.5"} :src "https://raw.githubusercontent.com/metosin/malli/master/docs/img/malli.png"}]]]]])
 
-(defn create-modal [content]
+(defn create-or-update-modal! [content]
   (if-let [existing-modal (find-existing-modal)]
     (do
-      (let [modal-content (gdom/getElementByClass modal-content-class-name)]
-        (render-hiccup modal-content content)
-        existing-modal))
+      (render-hiccup! existing-modal (modal-hiccup content))
+      existing-modal)
 
     (hiccup-to-dom (modal-hiccup content))))
 
@@ -127,11 +125,20 @@
   (let [modal-style (.-style modal)]
     (set! (.-display modal-style) "block")))
 
+(defn get-shadow-root-host []
+  (if-let [parent (gdom/getElement modal-container-dom-node)]
+    parent
+    (let [parent (gdom/createDom "div" #js{:id modal-container-dom-node})]
+      (.appendChild (.-body js/document) parent)
+      parent)))
+
 (defn show-dom-message! [dom-message]
-  (let [body (gdom/getElementByTagNameAndClass "body")
-        modal (create-modal dom-message)]
+  (let [modal (create-or-update-modal! dom-message)]
     (when-not (find-existing-modal)
-      (gdom/appendChild body modal))
+      (let [parent (get-shadow-root-host)
+            shadow-root (.attachShadow parent #js{:mode "open"})]
+        (.appendChild shadow-root modal)
+        (reset! shadow-root_ shadow-root)))
     (show-modal modal)))
 
 (defn ^:dev/before-load before-load []
@@ -279,6 +286,32 @@
          ))]
     [:p {:style {:padding "20px 0"}} "More information "
      [:a {:href "https://cljdoc.org/d/metosin/malli/CURRENT/doc/function-schemas"
+          :style {:color "#59a1df"}
+          :ref "nooper" :target "_blank"} "function schema docs"]]]])
+
+(defmethod -format ::m/invalid-output [_ {:keys [value args output fn-name]} printer]
+  [:div {:className "malli-error"}
+   [:h1 "Invalid Function Output"]
+   [:div
+    [:p label-attrs "Invalid function return value"]
+    (-visit value)
+    (when fn-name
+      [:div
+       [:p label-attrs "Function Var "] [:pre {:className "malli-error-fn-name"} fn-name]])
+
+    [:p label-attrs "Function arguments"]
+    [:pre (-visit args)]
+
+    [:p label-attrs "Output Schema"]
+    [:pre (pr-str (m/form output))]
+
+    [:p label-attrs "Errors"]
+    [:pre
+     (with-out-str
+       (pprint (me/with-error-messages (m/explain output value))))]
+    [:p {:style {:padding "20px 0"}} "More information "
+     [:a {:href "https://cljdoc.org/d/metosin/malli/CURRENT/doc/function-schemas"
+          :style {:color "#59a1df"}
           :ref "nooper" :target "_blank"} "function schema docs"]]]])
 
 (defn dom-reporter
