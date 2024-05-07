@@ -200,7 +200,7 @@
 
 (defn make-css-str [theme]
   (str
-    (css->str (get themes theme dark-theme))
+    (css->str (if (map? theme) theme (get themes theme dark-theme)))
     (css->str modal-styles)))
 
 (make-css-str :light)
@@ -398,6 +398,7 @@
     :light :dark))
 
 (defn dom-reporter
+  "Takes an optional theme keyword (:light or :dark) or hashmap of css to override the theme."
   ([] (dom-reporter (get-preferred-color-scheme)))
   ([theme]
    (let [printer (pretty/-printer)
@@ -412,10 +413,13 @@
          (.log js/console "message: " message)
          (show-dom-message! dom-message theme))))))
 
+
 (defn dom-reporter-with-thrower
-  []
-  (let [thrower (malli.dev.pretty/thrower)
-        dom-reporter' (dom-reporter)]
-    (fn [type data]
-      (dom-reporter' type data)
-      (thrower type data))))
+  "Takes an optional theme keyword (:light or :dark) or hashmap of css to override the theme."
+  ([] (dom-reporter-with-thrower (get-preferred-color-scheme)))
+  ([theme]
+   (let [thrower (malli.dev.pretty/thrower)
+         dom-reporter' (dom-reporter theme)]
+     (fn [type data]
+       (dom-reporter' type data)
+       (thrower type data)))))
