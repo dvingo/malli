@@ -1,6 +1,5 @@
 (ns malli.dev.dom-reporter
-  (:require [clojure.string :as str]
-            [malli.core :as m]
+  (:require [malli.core :as m]
             [malli.error :as me]
             [malli.dev.pretty :as pretty]
             [cljs.pprint :refer [pprint]]
@@ -43,19 +42,6 @@
         dom-tree (hiccup-to-dom hiccup-data)]
     (gdom/removeChildren container)
     (gdom/appendChild container dom-tree)))
-
-;(comment
-;  (gdom/append js/dan (gdom/createDom "h1" #js{:className "hi" :style #js{:color "Blue"}} "hellow"))
-;  (hiccup-to-dom [:div
-;                  [:h1 {:style {:color "RED"}} "ERROR"]
-;                  [:p "The error is: "]
-;                  [:pre "hello"]])
-;  (render-hiccup! "test"
-;    [:div {:style {:margin "20px"}}
-;     [:h3 {:style {:padding "10px 20px"}} "CANGED"]
-;     [:h1 {:style {:color "grey"}} "ERROR"]
-;     [:p {:style {:border "1px solid yellow"}} "The error is: "]
-;     [:pre "hello"]]))
 
 (defonce shadow-root_ (atom nil))
 
@@ -412,7 +398,6 @@
          (.log js/console "ERROR type: " (pr-str type) ", data: " (pr-str data))
          (.log js/console "message: " message)
          (show-dom-message! dom-message theme))))))
-
 
 (defn dom-reporter-with-thrower
   "Takes an optional theme keyword (:light or :dark) or hashmap of css to override the theme."
