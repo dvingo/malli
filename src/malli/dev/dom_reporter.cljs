@@ -120,6 +120,7 @@
    :link "var(--link-color)"
    :string "var(--string-color)"
    :constant "var(--constant-color)"
+   :keyword "var(--keyword-color)"
    :type "var(--type-color)"
    :error "var(--error-color)"})
 
@@ -129,9 +130,10 @@
     :--title-dark-color "rgb(100 100 100)"
     :--text-color "rgb(226 220 205)"
     :--link-color "rgb(100 100 100)"
-    :--string-color "rgb(100 100 100)"
+    :--string-color "hsl(0 67% 76% / 1)"
     :--constant-color "rgb(100 100 100)"
     :--type-color "rgb(100 100 100)"
+    :--keyword-color "hsl(174 36% 60% / 1)"
     :--error-color "rgb(226 220 205)"
     :--modal-title-color "#d0d0d0"
     :--modal-close-icon-color "white"
@@ -147,9 +149,10 @@
     :--title-dark-color "rgb(100 100 100)"
     :--text-color "rgb(100 100 100)"
     :--link-color "rgb(100 100 100)"
-    :--string-color "rgb(100 100 100)"
+    :--string-color "rgb(188 18 18)"
     :--constant-color "rgb(100 100 100)"
     :--type-color "rgb(100 100 100)"
+    :--keyword-color "rgb(42 89 84)"
     :--error-color "rgb(72 68 68)"
     :--modal-title-color "black"
     :--modal-close-icon-color "black"
@@ -163,12 +166,17 @@
   {".malli-error > h1"
    {:color "var(--modal-title-color)"}
 
+   ".malli-error > div > pre"
+   {:white-space "pre-wrap"}
+
    ".malli-instrument-modal-container"
    {:position "fixed"
     :top "10%"
     :left "50%"
     :transform "translate(-50%, 0)"
     :max-width "50rem"
+    :max-height "calc(100vh - 5rem)"
+    :overflow "auto"
     :box-shadow "var(--modal-container-shadow)"
     :padding "20px 40px 0"
     :border-radius "4px"
@@ -176,6 +184,7 @@
 
    (str "." modal-content-class-name)
    {:border-radius "4px"
+    :width "100%"
     :padding "10px 20px"
     :color "var(--modal-content-color)"}
 
@@ -214,19 +223,44 @@
   (when-let [modal (find-existing-modal)]
     (hide-modal modal)))
 
+(defn inline-mono
+  ([x] (inline-mono x nil))
+  ([x styles] [:span {:style (merge {:font-family "monospace"} styles)} x]))
+
 (defn -visit [x]
   (cond
-    (nil? x) [:span (-color :text "nil")]
-    (boolean? x) [:span (-color :text (str x))]
-    (string? x) [:span (-color :text (pr-str x))]
-    (char? x) [:span (-color :text (pr-str x))]
+    (nil? x) (inline-mono (-color :text "nil"))
+    (boolean? x) (inline-mono (-color :text (str x)))
+    (string? x) (inline-mono (-color :string (pr-str x)))
+    (char? x) (inline-mono (-color :text (pr-str x)))
     ;(symbol? x) (visit-symbol visitor x)
-    ;(keyword? x) (visit-keyword visitor x)
-    ;(number? x) (visit-number visitor x)
+    (keyword? x) (inline-mono (-color :keyword (pr-str x)))
+    (number? x) (inline-mono (-color :constant (pr-str x)))
     ;(seq? x) (visit-seq visitor x)
-    ;(vector? x) (visit-vector visitor x)
+    (vector? x)
+    (conj
+      (into
+        [:div
+         (inline-mono "[" {:margin-right "1rem"})]
+        (map -visit x)
+        ) "]")
+
     ;(record? x) (visit-record visitor x)
-    ;(map? x) (visit-map visitor x)
+    (map? x)
+    (conj
+      (into
+        [:div
+         [:span (-color :constant "{")]]
+        (reduce-kv
+          (fn [acc k v]
+            (conj acc
+              [:div {:style {:margin-left "1rem"}} (-visit k)
+               [:span {:style {:padding-right "1rem"}}]
+               (-visit v)]))
+          [] x))
+      [:span (-color :constant "}")])
+
+
     ;(set? x) (visit-set visitor x)
     ;(tagged-literal? x) (visit-tagged visitor x)
     (var? x) [:span (-color :text (str x))]
@@ -330,6 +364,8 @@
        :style {:color "var(--modal-link-color)"}
        :ref "nooper" :target "_blank"} "function schema docs"])
 
+(defn pprint-str [x] (with-out-str (pprint x)))
+
 (defmethod -format ::m/invalid-input [_ {:keys [args input fn-name]} printer]
   [:div {:className "malli-error"}
    [:h1 "Invalid Function Input"]
@@ -341,17 +377,19 @@
        [:p label-attrs "Function Var "] [:pre {:className "malli-error-fn-name"} fn-name]])
 
     [:p label-attrs "Input Schema"]
-    [:pre (pr-str (m/form input))]
+    [:pre (pprint-str (m/form input))]
+
+    [:p label-attrs "Error descriptions"]
+    [:pre (pprint-str (me/humanize (m/explain input args)))]
 
     [:p label-attrs "Errors"]
     [:pre
-     (with-out-str
-       (pprint
-         (update
-           (me/with-error-messages (m/explain input args))
-           :schema m/form)
-         ;(pretty/-explain input args printer)
-         ))]
+     (pprint-str
+       (update
+         (me/with-error-messages (m/explain input args))
+         :schema m/form)
+       ;(pretty/-explain input args printer)
+       )]
     [:p {:style {:padding "20px 0"}} "More information " docs-link]]])
 
 (defmethod -format ::m/invalid-output [_ {:keys [value args output fn-name]} printer]
@@ -368,15 +406,14 @@
     [:pre (-visit args)]
 
     [:p label-attrs "Output Schema"]
-    [:pre (pr-str (m/form output))]
+    [:pre (pprint-str (m/form output))]
 
     [:p label-attrs "Errors"]
     [:pre
-     (with-out-str
-       (pprint
-         (update
-          (me/with-error-messages (m/explain output value))
-           :schema m/form)))]
+     (pprint-str
+       (update
+         (me/with-error-messages (m/explain output value))
+         :schema m/form))]
     [:p {:style {:padding "20px 0"}} "More information " docs-link]]])
 
 (defn get-preferred-color-scheme []
