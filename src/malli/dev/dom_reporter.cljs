@@ -121,6 +121,7 @@
    :string "var(--string-color)"
    :constant "var(--constant-color)"
    :keyword "var(--keyword-color)"
+   :symbol "var(--symbol-color)"
    :type "var(--type-color)"
    :error "var(--error-color)"})
 
@@ -134,6 +135,7 @@
     :--constant-color "rgb(100 100 100)"
     :--type-color "rgb(100 100 100)"
     :--keyword-color "hsl(174 36% 60% / 1)"
+    :--symbol-color "hsl(174 36% 60% / 1)"
     :--error-color "rgb(226 220 205)"
     :--modal-title-color "#d0d0d0"
     :--modal-close-icon-color "white"
@@ -153,6 +155,7 @@
     :--constant-color "rgb(100 100 100)"
     :--type-color "rgb(100 100 100)"
     :--keyword-color "rgb(42 89 84)"
+    :--symbol-color "rgb(24 139 126)"
     :--error-color "rgb(72 68 68)"
     :--modal-title-color "black"
     :--modal-close-icon-color "black"
@@ -171,7 +174,7 @@
 
    ".malli-instrument-modal-container"
    {:position "fixed"
-    :top "10%"
+    :top "4vh"
     :left "50%"
     :transform "translate(-50%, 0)"
     :max-width "50rem"
@@ -189,7 +192,9 @@
     :color "var(--modal-content-color)"}
 
    ".malli-instrument-modal-close"
-   {:color "var(--modal-close-icon-color)"}})
+   {:color "var(--modal-close-icon-color)"}
+   ".malli-error-fn-name"
+   {:font-weight "700"}})
 
 (def themes {:light light-theme :dark dark-theme})
 
@@ -233,17 +238,17 @@
     (boolean? x) (inline-mono (-color :text (str x)))
     (string? x) (inline-mono (-color :string (pr-str x)))
     (char? x) (inline-mono (-color :text (pr-str x)))
-    ;(symbol? x) (visit-symbol visitor x)
+    (symbol? x) (if (namespace x)
+                  (inline-mono [:span (-color :text (namespace x))
+                                "/" (-color :symbol (name x))])
+                  (inline-mono (-color :symbol (name x))))
     (keyword? x) (inline-mono (-color :keyword (pr-str x)))
     (number? x) (inline-mono (-color :constant (pr-str x)))
     ;(seq? x) (visit-seq visitor x)
     (vector? x)
     (conj
       (into
-        [:div
-         (inline-mono "[" {:margin-right "1rem"})]
-        (map -visit x)
-        ) "]")
+        [:div (inline-mono "[")] (map -visit x) ) "]")
 
     ;(record? x) (visit-record visitor x)
     (map? x)
@@ -343,21 +348,28 @@
 
 (defmulti -format (fn [err-type data printer] err-type) :default ::default)
 
-(defmethod -format ::default [e data printer]
-  [:div {:className "malli-error"}
-   [:h1 "Unknown Error"]
-   [:div
-    [:p "Type:" (type e)]
-    [:p "Message:" (ex-message e)]
-    (when-let [data (ex-data e)]
-      [:p "Ex-data:" (-visit data)])]])
-
-(def label-styles
-  #js{:padding "10px 0px"
-      :font-size "1.2rem"
-      :font-weight "700"})
-
+(def label-styles #js{:padding "10px 0px", :font-size "1.2rem", :font-weight "700"})
 (def label-attrs {:style label-styles})
+(defn label [& args] (into [:p label-attrs] args))
+(defn code [& args] (into [:pre {:style #js{:white-space "pre-wrap" :font-size "0.72rem"
+                                            :max-height "40rem"
+                                            :overflow "auto"}}] args))
+
+(defmethod -format ::default [error-kw-or-obj data printer]
+  (if (keyword? error-kw-or-obj)
+    [:div {:className "malli-error"}
+     [:h1 (pr-str error-kw-or-obj)]
+     [:div
+      (label "Type: ") (code (pr-str error-kw-or-obj))]]
+    [:div {:className "malli-error"}
+     [:h1 "Unknown Error"]
+     [:div
+      (label "Type: ") (code (pr-str error-kw-or-obj))
+      (label "Message: ") (code (or (ex-message error-kw-or-obj) (ex-data error-kw-or-obj)))
+      (when-let [data (ex-data error-kw-or-obj)]
+        [:div
+         (label "Ex-data: ")
+         (-visit data)] [])]]))
 
 (def docs-link
   [:a {:href "https://cljdoc.org/d/metosin/malli/CURRENT/doc/function-schemas"
@@ -366,23 +378,25 @@
 
 (defn pprint-str [x] (with-out-str (pprint x)))
 
+(defn function-var-name-output [fn-name]
+  (when fn-name
+    [:div (label "Function Var ") [:pre {:className "malli-error-fn-name"} (-visit fn-name)]]))
+
 (defmethod -format ::m/invalid-input [_ {:keys [args input fn-name]} printer]
   [:div {:className "malli-error"}
    [:h1 "Invalid Function Input"]
    [:div
-    [:p label-attrs "Invalid function arguments"]
+    (label "Invalid function arguments")
     (-visit args)
-    (when fn-name
-      [:div
-       [:p label-attrs "Function Var "] [:pre {:className "malli-error-fn-name"} fn-name]])
+    (when fn-name (function-var-name-output fn-name))
 
     [:p label-attrs "Input Schema"]
     [:pre (pprint-str (m/form input))]
 
-    [:p label-attrs "Error descriptions"]
+    (label "Error descriptions")
     [:pre (pprint-str (me/humanize (m/explain input args)))]
 
-    [:p label-attrs "Errors"]
+    (label "Errors")
     [:pre
      (pprint-str
        (update
@@ -398,15 +412,14 @@
    [:div
     [:p label-attrs "Invalid function return value"]
     (-visit value)
-    (when fn-name
-      [:div
-       [:p label-attrs "Function Var "] [:pre {:className "malli-error-fn-name"} fn-name]])
+
+    (function-var-name-output fn-name)
 
     [:p label-attrs "Function arguments"]
-    [:pre (-visit args)]
+    (code (-visit args))
 
     [:p label-attrs "Output Schema"]
-    [:pre (pprint-str (m/form output))]
+    (code (pprint-str (m/form output)))
 
     [:p label-attrs "Errors"]
     [:pre
@@ -414,6 +427,16 @@
        (update
          (me/with-error-messages (m/explain output value))
          :schema m/form))]
+    [:p {:style {:padding "20px 0"}} "More information " docs-link]]])
+
+(defmethod -format ::m/invalid-arity [_ {:keys [args arity schema fn-name]} printer]
+  [:div {:className "malli-error"}
+   [:h1 (str "Invalid Function Arity (" arity ")")]
+   [:div
+    (function-var-name-output fn-name)
+    (code (str "called with " arity (if (= 1 arity) " argument." " arguments.")))
+    (label "Function Args" (code (-visit args)))
+    (label "Function Schema") (code (pprint-str (m/form schema)))
     [:p {:style {:padding "20px 0"}} "More information " docs-link]]])
 
 (defn get-preferred-color-scheme []

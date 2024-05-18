@@ -79,7 +79,11 @@
     (cond
       (-pure-variadic? original-fn) (-replace-variadic-fn original-fn n s opts)
       (-max-fixed-arity original-fn) (-replace-multi-arity original-fn n s opts)
-      :else (let [instrumented-fn (meta-fn (m/-instrument opts original-fn) {:instrumented-symbol (symbol (name n) (name s))})]
+      :else (let [original-fn-meta (meta original-fn)
+                  instrumented-fn (meta-fn (m/-instrument opts original-fn)
+                                    (merge
+                                      original-fn-meta
+                                      {:instrumented-symbol (symbol (name n) (name s))}))]
               (g/set original-fn "malli$instrument$instrumented?" true)
               (g/set instrumented-fn "malli$instrument$instrumented?" true)
               (g/set instrumented-fn "malli$instrument$original" original-fn)
